@@ -1,61 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:knue_moa/models/notice_model.dart';
 import 'package:knue_moa/screens/home_page.dart';
+import 'package:knue_moa/services/scraper_service.dart';  // ✅ 추가됨
 
-void main() => runApp(const KnueMoaApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-class KnueMoaApp extends StatefulWidget {
-  const KnueMoaApp({super.key});
-  @override
-  State<KnueMoaApp> createState() => _KnueMoaAppState();
+  // Hive 초기화
+  await Hive.initFlutter();
+  Hive.registerAdapter(NoticeAdapter()); // generated code
+  await Hive.openBox<Notice>(KnueScraper.noticeBoxName);
+
+  runApp(const ProviderScope(child: KnueMoaApp()));
 }
 
-class _KnueMoaAppState extends State<KnueMoaApp> {
-  String _themeKey = 'blue';
-
-  // React THEMES 정의와 동일한 구성
-  final Map<String, Map<String, dynamic>> _themes = {
-    'blue': {
-      'name': 'KNUE Blue',
-      'gradient': const LinearGradient(colors: [Color(0xFF2563EB), Color(0xFF4338CA)]),
-      'primary': const Color(0xFF2563EB),
-      'bgLight': const Color(0xFFEFF6FF),
-      'bannerBg': const Color(0xFF1E1B4B),
-      'ring': const Color(0xFF3B82F6),
-      'categoryColor': const Color(0xFFDBEAFE),
-      'categoryText': const Color(0xFF1D4ED8),
-    },
-    'green': {
-      'name': 'Fresh Green',
-      'gradient': const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF0D9488)]),
-      'primary': const Color(0xFF10B981),
-      'bgLight': const Color(0xFFECFDF5),
-      'bannerBg': const Color(0xFF064E3B),
-      'ring': const Color(0xFF10B981),
-      'categoryColor': const Color(0xFFD1FAE5),
-      'categoryText': const Color(0xFF047857),
-    },
-    'orange': {
-      'name': 'Sunset Orange',
-      'gradient': const LinearGradient(colors: [Color(0xFFF97316), Color(0xFFEF4444)]),
-      'primary': const Color(0xFFF97316),
-      'bgLight': const Color(0xFFFFF7ED),
-      'bannerBg': const Color(0xFF7C2D12),
-      'ring': const Color(0xFFF97316),
-      'categoryColor': const Color(0xFFFFEDD5),
-      'categoryText': const Color(0xFFC2410C),
-    },
-  };
+class KnueMoaApp extends ConsumerWidget {
+  const KnueMoaApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, fontFamily: 'Pretendard'),
-      home: HomePage(
-        currentTheme: _themes[_themeKey]!,
-        themeKey: _themeKey,
-        onThemeChange: (key) => setState(() => _themeKey = key),
+      title: 'KNUE MoA',
+      theme: ThemeData(
+        useMaterial3: true,
+        fontFamily: 'Pretendard',
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
       ),
+      home: const HomePage(),
     );
   }
 }

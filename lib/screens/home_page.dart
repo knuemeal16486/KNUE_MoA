@@ -1,320 +1,908 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:knue_moa/models/notice_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:knue_moa/constants/theme_constants.dart';
+import 'package:knue_moa/providers/providers.dart';
 import 'package:knue_moa/services/scraper_service.dart';
+import 'package:knue_moa/widgets/notice_card.dart';
+import 'package:knue_moa/widgets/keyword_chip.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-class HomePage extends StatefulWidget {
-  final Map<String, dynamic> currentTheme;
-  final String themeKey;
-  final Function(String) onThemeChange;
-
-  const HomePage({super.key, required this.currentTheme, required this.themeKey, required this.onThemeChange});
+class HomePage extends ConsumerStatefulWidget {
+  const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderStateMixin {
   int _activeTab = 0;
   String _selectedGroup = 'MAIN';
   String _selectedBoard = 'ALL';
   String _searchScope = '전체';
   String _searchQuery = '';
-  
-  final KnueScraper _scraper = KnueScraper();
-  List<Notice> _allNotices = [];
-  List<String> _keywords = [];
-  List<int> _favorites = [];
-  bool _isAlarmOn = true;
   bool _isInputVisible = false;
-  
   final TextEditingController _keywordController = TextEditingController();
   int _aiBannerIndex = 0;
   Timer? _bannerTimer;
 
-  // React NOTICE_GROUPS를 사용자 데이터에 맞게 100% 반영
+  late final TabController _tabController;
+
+  final KnueScraper _scraper = KnueScraper();
+
+  // 그룹 재정의: DEPT1-4를 'DEPT'로 통합
   final Map<String, Map<String, dynamic>> _noticeGroups = {
     'MY': {'label': 'MY', 'icon': LucideIcons.star},
     'MAIN': {'label': '본부 공지', 'icon': LucideIcons.building2},
     'ANNEX': {'label': '부속 기관', 'icon': LucideIcons.library},
-    'DEPT1': {'label': '제1대학', 'icon': LucideIcons.graduationCap},
-    'DEPT2': {'label': '제2대학', 'icon': LucideIcons.graduationCap},
-    'DEPT3': {'label': '제3대학', 'icon': LucideIcons.graduationCap},
-    'DEPT4': {'label': '제4대학', 'icon': LucideIcons.graduationCap},
+    'DEPT': {'label': '학과 홈페이지', 'icon': LucideIcons.graduationCap},
     'GRAD': {'label': '대학원', 'icon': LucideIcons.school},
   };
 
   @override
   void initState() {
     super.initState();
-    _loadStoredData();
-    _refreshData();
+    _tabController = TabController(length: 3, vsync: this);
     _startAiBanner();
   }
 
-  Future<void> _loadStoredData() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _keywords = prefs.getStringList('keywords') ?? ['장학', '수강', '졸업'];
-      _favorites = (prefs.getStringList('favorites') ?? []).map(int.parse).toList();
-      _isAlarmOn = prefs.getBool('isAlarmOn') ?? true;
-    });
-  }
-
-  Future<void> _saveData() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('keywords', _keywords);
-    await prefs.setStringList('favorites', _favorites.map((e) => e.toString()).toList());
-    await prefs.setBool('isAlarmOn', _isAlarmOn);
-  }
-
-  void _refreshData() async {
-    final data = await _scraper.fetchAllNotices();
-    setState(() => _allNotices = data);
+  @override
+  void dispose() {
+    _bannerTimer?.cancel();
+    _keywordController.dispose();
+    _tabController.dispose();
+    super.dispose();
   }
 
   void _startAiBanner() {
     _bannerTimer = Timer.periodic(const Duration(seconds: 3), (t) {
-      if (_allNotices.isNotEmpty) setState(() => _aiBannerIndex = (_aiBannerIndex + 1) % 5);
+      final notices = ref.read(noticesProvider).valueOrNull;
+      if (notices != null && notices.isNotEmpty) {
+        setState(() {
+          _aiBannerIndex = (_aiBannerIndex + 1) % 5;
+        });
+      }
     });
-  }
-
-  Future<void> _launchURL(String url) async {
-    if (!await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication)) {
-      throw 'Could not launch $url';
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final themeKey = ref.watch(themeKeyProvider);
+    final themeData = AppTheme.getTheme(themeKey);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: Column(
           children: [
-            if (_activeTab != 1) _buildHeader(),
-            Expanded(child: IndexedStack(index: _activeTab, children: [_buildHomeTab(), _buildSearchTab(), _buildSettingsTab()])),
+            if (_activeTab != 1) _buildHeader(themeData),
+            Expanded(
+              child: IndexedStack(
+                index: _activeTab,
+                children: [
+                  _buildHomeTab(themeData),
+                  _buildSearchTab(themeData),
+                  _buildSettingsTab(themeData),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: _buildBottomNav(themeData),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(Map<String, dynamic> theme) {
+    final isAlarmOn = ref.watch(alarmProvider);
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          RichText(text: TextSpan(style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)), children: [
-            const TextSpan(text: 'KNUE '),
-            TextSpan(text: 'MoA', style: TextStyle(color: widget.currentTheme['primary'])),
-          ])),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
+              children: [
+                const TextSpan(text: 'KNUE '),
+                TextSpan(text: 'MoA', style: TextStyle(color: theme['primary'])),
+              ],
+            ),
+          ),
           IconButton(
-            onPressed: () { setState(() => _isAlarmOn = !_isAlarmOn); _saveData(); },
-            icon: Icon(_isAlarmOn ? LucideIcons.bell : LucideIcons.bellOff, color: const Color(0xFF334155)),
-          )
+            onPressed: () => ref.read(alarmProvider.notifier).state = !isAlarmOn,
+            icon: Icon(
+              isAlarmOn ? LucideIcons.bell : LucideIcons.bellOff,
+              color: const Color(0xFF334155),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildHomeTab() {
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 40),
-      children: [_buildKeywordCard(), _buildAiBanner(), _buildFolderSystem(), _buildNoticeList()],
+  // ========== 홈 탭 ==========
+  Widget _buildHomeTab(Map<String, dynamic> theme) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(noticesProvider);
+        ref.invalidate(refreshNoticesProvider);
+      },
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 40),
+        children: [
+          _buildKeywordCard(theme),
+          _buildAiBanner(theme),
+          _buildFolderSystem(theme),
+          _buildNoticeList(theme),
+        ],
+      ),
     );
   }
 
-  Widget _buildKeywordCard() {
+  Widget _buildKeywordCard(Map<String, dynamic> theme) {
+    final keywordsAsync = ref.watch(keywordsProvider);
+    final keywords = keywordsAsync.value ?? [];
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(gradient: widget.currentTheme['gradient'], borderRadius: BorderRadius.circular(24)),
+      decoration: BoxDecoration(
+        gradient: theme['gradient'],
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: theme['primary'].withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Row(children: [Icon(LucideIcons.star, color: Colors.yellow, size: 20), SizedBox(width: 8), Text('나의 키워드', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18))]),
-            IconButton(onPressed: () => setState(() => _isInputVisible = !_isInputVisible), icon: Icon(_isInputVisible ? LucideIcons.x : LucideIcons.plus, color: Colors.white)),
-          ]),
-          if (_isInputVisible) _buildKeywordInput(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(LucideIcons.star, color: Colors.yellow, size: 22),
+                  SizedBox(width: 8),
+                  Text(
+                    '나의 키워드',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ],
+              ),
+              IconButton(
+                onPressed: () => setState(() => _isInputVisible = !_isInputVisible),
+                icon: Icon(
+                  _isInputVisible ? LucideIcons.x : LucideIcons.plus,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          if (_isInputVisible) _buildKeywordInput(theme),
           const SizedBox(height: 12),
-          Wrap(spacing: 8, runSpacing: 8, children: _keywords.map((k) => Chip(label: Text('#$k', style: const TextStyle(color: Colors.white, fontSize: 11)), backgroundColor: Colors.white.withOpacity(0.2), onDeleted: () { setState(() => _keywords.remove(k)); _saveData(); }, deleteIconColor: Colors.white70)).toList()),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: keywords.map((k) => KeywordChip(
+              label: k,
+              onDeleted: () => ref.read(keywordsNotifierProvider.notifier).remove(k),
+            )).toList(),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildKeywordInput() {
+  Widget _buildKeywordInput(Map<String, dynamic> theme) {
     return Padding(
       padding: const EdgeInsets.only(top: 10),
-      child: Row(children: [
-        Expanded(child: TextField(controller: _keywordController, decoration: InputDecoration(hintText: '키워드 입력', fillColor: Colors.white, filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)), onSubmitted: (v) => _addKeyword())),
-        const SizedBox(width: 8),
-        ElevatedButton(onPressed: _addKeyword, style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: widget.currentTheme['primary']), child: const Text("추가")),
-      ]),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _keywordController,
+              decoration: InputDecoration(
+                hintText: '예: 장학금, 수강신청',
+                fillColor: Colors.white,
+                filled: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              onSubmitted: (_) => _addKeyword(),
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: _addKeyword,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: theme['primary'],
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            ),
+            child: const Text('추가'),
+          ),
+        ],
+      ),
     );
   }
 
   void _addKeyword() {
     if (_keywordController.text.isNotEmpty) {
-      setState(() { _keywords.add(_keywordController.text); _keywordController.clear(); _isInputVisible = false; });
-      _saveData();
+      ref.read(keywordsNotifierProvider.notifier).add(_keywordController.text);
+      _keywordController.clear();
+      setState(() => _isInputVisible = false);
     }
   }
 
-  Widget _buildAiBanner() {
-    if (_allNotices.isEmpty) return const SizedBox.shrink();
-    final n = _allNotices[_aiBannerIndex % 5];
-    return Container(
-      margin: const EdgeInsets.all(20), height: 48,
-      decoration: BoxDecoration(color: widget.currentTheme['bannerBg'], borderRadius: BorderRadius.circular(12)),
-      child: Row(children: [
-        const SizedBox(width: 15), const Icon(LucideIcons.sparkles, color: Colors.yellow, size: 18), const SizedBox(width: 15),
-        Expanded(child: Text("[${n.category}] ${n.title}", style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
-        const Icon(LucideIcons.chevronRight, color: Colors.white54, size: 18),
-      ]),
-    );
-  }
+  Widget _buildAiBanner(Map<String, dynamic> theme) {
+    final noticesAsync = ref.watch(noticesProvider);
+    final notices = noticesAsync.valueOrNull ?? [];
 
-  Widget _buildFolderSystem() {
-    return Column(children: [
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Row(children: _noticeGroups.entries.map((e) {
-          bool active = _selectedGroup == e.key;
-          return GestureDetector(
-            onTap: () => setState(() { _selectedGroup = e.key; _selectedBoard = 'ALL'; }),
-            child: Container(width: 75, padding: const EdgeInsets.only(bottom: 12), child: Column(children: [
-              Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: active ? widget.currentTheme['bgLight'] : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: active ? widget.currentTheme['primary'] : Colors.grey.shade100)), child: Icon(e.value['icon'], color: active ? widget.currentTheme['primary'] : Colors.grey.shade400)),
-              const SizedBox(height: 6), Text(e.value['label'], style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: active ? widget.currentTheme['primary'] : Colors.grey)),
-            ])),
-          );
-        }).toList()),
-      ),
-      if (_selectedGroup != 'MY') _buildBoardSelector(),
-    ]);
-  }
+    if (notices.isEmpty) return const SizedBox.shrink();
 
-  Widget _buildBoardSelector() {
-    final boards = ['ALL', ...(_scraper.boardGroups[_selectedGroup]?.keys ?? [])];
-    return Container(
-      height: 50, padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: ListView(scrollDirection: Axis.horizontal, children: boards.map((b) => Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(b == 'ALL' ? '전체보기' : b), selected: _selectedBoard == b, onSelected: (s) => setState(() => _selectedBoard = b), selectedColor: widget.currentTheme['bgLight']))).toList()),
-    );
-  }
-
-  Widget _buildNoticeList() {
-    final filtered = _allNotices.where((n) {
-      if (_selectedGroup == 'MY') return _favorites.contains(n.id);
-      if (_selectedBoard != 'ALL') return n.category == _selectedBoard;
-      if (_selectedGroup != 'MAIN') return n.group == _selectedGroup;
-      return true;
-    }).toList();
-
-    return ListView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: filtered.length, itemBuilder: (c, i) => _buildNoticeCard(filtered[i]));
-  }
-
-  Widget _buildNoticeCard(Notice n) {
-    bool isMatched = _keywords.any((k) => n.title.contains(k));
-    bool isFav = _favorites.contains(n.id);
-    final theme = widget.currentTheme;
+    final notice = notices[_aiBannerIndex % notices.length];
 
     return GestureDetector(
-      onTap: () => _launchURL(n.link), // 링크 연동 기능 복구
+      onTap: () => _launchUrl(notice.link),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: isMatched ? theme['primary'] : Colors.grey.shade100, width: isMatched ? 1.5 : 1)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: theme['categoryColor'], borderRadius: BorderRadius.circular(4)), child: Text(n.category, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: theme['categoryText']))),
-            Text(n.date, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-          ]),
-          const SizedBox(height: 8),
-          Text(n.title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isMatched ? theme['primary'] : const Color(0xFF1E293B))),
-          const SizedBox(height: 12),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(n.author, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-            IconButton(constraints: const BoxConstraints(), padding: EdgeInsets.zero, icon: Icon(LucideIcons.star, color: isFav ? Colors.amber : Colors.grey.shade200, size: 18), onPressed: () { setState(() => isFav ? _favorites.remove(n.id) : _favorites.add(n.id)); _saveData(); }),
-          ])
-        ]),
+        margin: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: theme['bannerBg'],
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: theme['bannerBg'].withOpacity(0.4),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(LucideIcons.sparkles, color: Colors.yellow, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'AI 추천 공지',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                  Text(
+                    '[${notice.category}] ${notice.title}',
+                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(LucideIcons.chevronRight, color: Colors.white54, size: 18),
+          ],
+        ),
       ),
     );
   }
 
-  // --- 3. 검색 탭 (그리드 필터 복구) ---
-  Widget _buildSearchTab() {
-    final results = _allNotices.where((n) => n.title.toLowerCase().contains(_searchQuery.toLowerCase()) && (_searchScope == '전체' || n.category == _searchScope)).toList();
-    return Padding(padding: const EdgeInsets.all(24), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('검색', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 16),
-      TextField(onChanged: (v) => setState(() => _searchQuery = v), decoration: InputDecoration(hintText: '제목 검색', prefixIcon: const Icon(LucideIcons.search), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none))),
-      const SizedBox(height: 24),
-      const Text('검색 범위 선택', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-      const SizedBox(height: 12),
-      Expanded(child: ListView(children: [
-        _buildSearchScopeGrid(),
-        if (_searchQuery.isNotEmpty) ...results.map((n) => _buildNoticeCard(n)).toList(),
-      ])),
-    ]));
+  Widget _buildFolderSystem(Map<String, dynamic> theme) {
+    return Column(
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: _noticeGroups.entries.map((entry) {
+              final active = _selectedGroup == entry.key;
+              return GestureDetector(
+                onTap: () => setState(() {
+                  _selectedGroup = entry.key;
+                  _selectedBoard = 'ALL';
+                }),
+                child: Container(
+                  width: 75,
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: active ? theme['bgLight'] : Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: active ? theme['primary'] : Colors.grey.shade200,
+                            width: active ? 2 : 1,
+                          ),
+                        ),
+                        child: Icon(
+                          entry.value['icon'],
+                          color: active ? theme['primary'] : Colors.grey.shade400,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        entry.value['label'],
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: active ? theme['primary'] : Colors.grey,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        if (_selectedGroup != 'MY') _buildBoardSelector(theme),
+      ],
+    );
   }
 
-  Widget _buildSearchScopeGrid() {
-    // 모든 링크 제목을 그리드에 포함
-    List<String> allBoards = ['전체'];
-    _scraper.boardGroups.values.forEach((group) => allBoards.addAll(group.keys));
-    return Wrap(spacing: 8, runSpacing: 8, children: allBoards.take(15).map((s) => ChoiceChip(label: Text(s), selected: _searchScope == s, onSelected: (v) => setState(() => _searchScope = s))).toList());
+  // 게시판 선택기 (그룹에 따라 다른 board 목록 표시)
+  Widget _buildBoardSelector(Map<String, dynamic> theme) {
+    List<String> boards = [];
+
+    if (_selectedGroup == 'MAIN') {
+      boards = ['ALL', ...(_scraper.boardGroups['MAIN']?.keys ?? [])];
+    } else if (_selectedGroup == 'ANNEX') {
+      boards = ['ALL', ...(_scraper.boardGroups['ANNEX']?.keys ?? [])];
+    } else if (_selectedGroup == 'DEPT') {
+      // 모든 학과 게시판 통합
+      Set<String> deptBoards = {};
+      ['DEPT1', 'DEPT2', 'DEPT3', 'DEPT4'].forEach((key) {
+        deptBoards.addAll(_scraper.boardGroups[key]?.keys ?? []);
+      });
+      boards = ['ALL', ...deptBoards];
+    } else if (_selectedGroup == 'GRAD') {
+      boards = ['ALL', ...(_scraper.boardGroups['GRAD']?.keys ?? [])];
+    }
+
+    return Container(
+      height: 50,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: boards.length,
+        itemBuilder: (ctx, index) {
+          final board = boards[index];
+          final selected = _selectedBoard == board;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(board == 'ALL' ? '전체보기' : board),
+              selected: selected,
+              onSelected: (s) => setState(() => _selectedBoard = board),
+              selectedColor: theme['bgLight'],
+              labelStyle: TextStyle(
+                color: selected ? theme['primary'] : Colors.grey.shade700,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            ),
+          );
+        },
+      ),
+    );
   }
 
-  // --- 4. 설정 탭 (KNUE Mate 고도화 복구) ---
-  Widget _buildSettingsTab() {
-    return ListView(padding: const EdgeInsets.all(24), children: [
-      const Text('설정', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 30),
-      _buildSettingsGroup("알림 및 개인화", [
-        ListTile(leading: const Icon(LucideIcons.bell), title: const Text("키워드 알림"), trailing: Switch(value: _isAlarmOn, activeColor: widget.currentTheme['primary'], onChanged: (v) { setState(() => _isAlarmOn = v); _saveData(); })),
-        ListTile(leading: const Icon(LucideIcons.palette), title: const Text("테마 색상"), trailing: _buildThemeSelector()),
-      ]),
-      const SizedBox(height: 20),
-      _buildSettingsGroup("앱 정보", [
-        const ListTile(leading: Icon(LucideIcons.info), title: Text("버전 정보"), trailing: Text("v1.0.4")),
-        const ListTile(leading: Icon(LucideIcons.user), title: Text("개발자"), subtitle: Text("한국교원대 예비교사")),
-      ]),
-    ]);
+  Widget _buildNoticeList(Map<String, dynamic> theme) {
+    final noticesAsync = ref.watch(noticesProvider);
+    final favorites = ref.watch(favoritesNotifierProvider);
+
+    return noticesAsync.when(
+      data: (notices) {
+        if (notices.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: Text('공지사항이 없습니다.'),
+            ),
+          );
+        }
+
+        final filtered = notices.where((n) {
+          if (_selectedGroup == 'MY') return favorites.contains(n.id);
+          
+          // 그룹별 필터링
+          if (_selectedGroup == 'DEPT') {
+            // 학과 그룹: n.group이 DEPT1-4 중 하나여야 함
+            if (!n.group.startsWith('DEPT')) return false;
+            if (_selectedBoard != 'ALL') {
+              return n.category == _selectedBoard;
+            }
+            return true;
+          } else {
+            // 다른 그룹
+            if (_selectedBoard != 'ALL') return n.category == _selectedBoard;
+            return n.group == _selectedGroup;
+          }
+        }).toList();
+
+        if (filtered.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: Text('해당 게시판에 공지가 없습니다.'),
+            ),
+          );
+        }
+
+        return AnimationLimiter(
+          child: ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: filtered.length,
+            itemBuilder: (ctx, i) {
+              return AnimationConfiguration.staggeredList(
+                position: i,
+                duration: const Duration(milliseconds: 375),
+                child: SlideAnimation(
+                  verticalOffset: 50.0,
+                  child: FadeInAnimation(
+                    child: NoticeCard(notice: filtered[i], themeData: theme),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+      error: (error, stack) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            children: [
+              Icon(LucideIcons.wifiOff, size: 60, color: Colors.grey.shade400),
+              const SizedBox(height: 16),
+              Text(
+                '데이터를 불러올 수 없습니다',
+                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                error.toString(),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  ref.invalidate(noticesProvider);
+                },
+                child: const Text('다시 시도'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      loading: () => ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: 5,
+        itemBuilder: (ctx, i) => const _LoadingNoticeCard(),
+      ),
+    );
   }
 
-  Widget _buildSettingsGroup(String title, List<Widget> children) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: widget.currentTheme['primary'])),
-      const SizedBox(height: 10),
-      Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade100)), child: Column(children: children)),
-    ]);
+  // ========== 검색 탭 ==========
+  Widget _buildSearchTab(Map<String, dynamic> theme) {
+    final noticesAsync = ref.watch(noticesProvider);
+    final notices = noticesAsync.valueOrNull ?? [];
+
+    final results = notices.where((n) {
+      final matchesQuery = _searchQuery.isEmpty ||
+          n.title.toLowerCase().contains(_searchQuery.toLowerCase());
+      final matchesScope = _searchScope == '전체' || n.category == _searchScope;
+      return matchesQuery && matchesScope;
+    }).toList();
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '검색',
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            onChanged: (v) => setState(() => _searchQuery = v),
+            decoration: InputDecoration(
+              hintText: '제목으로 검색',
+              prefixIcon: const Icon(LucideIcons.search),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            '카테고리',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: _buildSearchCategoryList(theme),
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildThemeSelector() {
-    return Row(mainAxisSize: MainAxisSize.min, children: ['blue', 'green', 'orange'].map((k) => GestureDetector(onTap: () => widget.onThemeChange(k), child: Container(width: 20, height: 20, margin: const EdgeInsets.only(left: 8), decoration: BoxDecoration(color: k == 'blue' ? Colors.blue : k == 'green' ? Colors.green : Colors.orange, shape: BoxShape.circle, border: widget.themeKey == k ? Border.all(color: Colors.black, width: 2) : null)))).toList());
+  // 검색 카테고리를 섹션별로 정리한 리스트
+  Widget _buildSearchCategoryList(Map<String, dynamic> theme) {
+    // 섹션 정의
+    final sections = [
+      {'title': '본부 공지', 'boards': _scraper.boardGroups['MAIN']?.keys.toList() ?? []},
+      {'title': '부속 기관', 'boards': _scraper.boardGroups['ANNEX']?.keys.toList() ?? []},
+      {
+        'title': '학과 홈페이지',
+        'boards': [
+          ...? _scraper.boardGroups['DEPT1']?.keys,
+          ...? _scraper.boardGroups['DEPT2']?.keys,
+          ...? _scraper.boardGroups['DEPT3']?.keys,
+          ...? _scraper.boardGroups['DEPT4']?.keys,
+        ]
+      },
+      {'title': '대학원', 'boards': _scraper.boardGroups['GRAD']?.keys.toList() ?? []},
+    ];
+
+    return ListView.builder(
+      itemCount: sections.length + 1, // +1 for "전체" at top
+      itemBuilder: (ctx, index) {
+        if (index == 0) {
+          // "전체" 선택 칩 (상단에 고정)
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Wrap(
+              spacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('전체'),
+                  selected: _searchScope == '전체',
+                  onSelected: (s) => setState(() => _searchScope = '전체'),
+                  selectedColor: theme['bgLight'],
+                  labelStyle: TextStyle(
+                    color: _searchScope == '전체' ? theme['primary'] : Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final section = sections[index - 1];
+        final boards = section['boards'] as List<String>;
+        if (boards.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                section['title'] as String,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: theme['primary'],
+                ),
+              ),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: boards.map((board) {
+                final selected = _searchScope == board;
+                return ChoiceChip(
+                  label: Text(board),
+                  selected: selected,
+                  onSelected: (s) => setState(() => _searchScope = board),
+                  selectedColor: theme['bgLight'],
+                  labelStyle: TextStyle(
+                    color: selected ? theme['primary'] : Colors.grey.shade700,
+                    fontSize: 12,
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+          ],
+        );
+      },
+    );
   }
 
-  Widget _buildBottomNav() {
-    return Container(padding: const EdgeInsets.only(bottom: 25, top: 10), decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Color(0xFFF1F5F9)))), child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-      _navItem(LucideIcons.home, "홈", 0),
-      _navCenterBtn(),
-      _navItem(LucideIcons.settings, "설정", 2),
-    ]));
+  // ========== 설정 탭 ==========
+  Widget _buildSettingsTab(Map<String, dynamic> theme) {
+    final themeKey = ref.watch(themeKeyProvider);
+    final isAlarmOn = ref.watch(alarmProvider);
+
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        const Text(
+          '설정',
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 30),
+        _buildSettingsGroup(
+          '알림 및 개인화',
+          [
+            ListTile(
+              leading: const Icon(LucideIcons.bell),
+              title: const Text('키워드 알림'),
+              trailing: Switch(
+                value: isAlarmOn,
+                activeColor: theme['primary'],
+                onChanged: (v) => ref.read(alarmProvider.notifier).state = v,
+              ),
+            ),
+            const Divider(height: 0),
+            ListTile(
+              leading: const Icon(LucideIcons.palette),
+              title: const Text('테마 색상'),
+              trailing: _buildThemeSelector(themeKey),
+            ),
+          ],
+          theme,
+        ),
+        const SizedBox(height: 20),
+        _buildSettingsGroup(
+          '앱 정보',
+          [
+            const ListTile(
+              leading: Icon(LucideIcons.info),
+              title: Text('버전'),
+              trailing: Text('v1.2.0'),
+            ),
+            const Divider(height: 0),
+            const ListTile(
+              leading: Icon(LucideIcons.user),
+              title: Text('개발자'),
+              subtitle: Text('한국교원대학교 예비교사'),
+            ),
+          ],
+          theme,
+        ),
+      ],
+    );
   }
 
-  Widget _navItem(IconData icon, String label, int index) {
-    bool active = _activeTab == index;
-    return GestureDetector(onTap: () => setState(() => _activeTab = index), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icon, color: active ? widget.currentTheme['primary'] : Colors.grey, size: 24), const SizedBox(height: 4), Text(label, style: TextStyle(color: active ? widget.currentTheme['primary'] : Colors.grey, fontSize: 10, fontWeight: FontWeight.bold))]));
+  Widget _buildSettingsGroup(String title, List<Widget> children, Map<String, dynamic> theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: theme['primary'],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey.shade100),
+          ),
+          child: Column(children: children),
+        ),
+      ],
+    );
   }
 
-  Widget _navCenterBtn() {
-    return GestureDetector(onTap: () => setState(() => _activeTab = 1), child: Container(width: 52, height: 52, decoration: BoxDecoration(gradient: widget.currentTheme['gradient'], shape: BoxShape.circle, boxShadow: [BoxShadow(color: widget.currentTheme['primary'].withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]), child: const Icon(LucideIcons.search, color: Colors.white, size: 24)));
+  Widget _buildThemeSelector(String currentKey) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: ['blue', 'green', 'orange'].map((key) {
+        final isSelected = currentKey == key;
+        Color color;
+        switch (key) {
+          case 'blue':
+            color = Colors.blue;
+            break;
+          case 'green':
+            color = Colors.green;
+            break;
+          case 'orange':
+            color = Colors.orange;
+            break;
+          default:
+            color = Colors.blue;
+        }
+        return GestureDetector(
+          onTap: () => ref.read(themeKeyProvider.notifier).state = key,
+          child: Container(
+            width: 32,
+            height: 32,
+            margin: const EdgeInsets.only(left: 8),
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: isSelected ? Border.all(color: Colors.black, width: 2) : null,
+              boxShadow: isSelected
+                  ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 6)]
+                  : null,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // ========== 하단 네비게이션 ==========
+  Widget _buildBottomNav(Map<String, dynamic> theme) {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 25, top: 10),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _navItem(LucideIcons.home, '홈', 0, theme),
+          _navCenterBtn(theme),
+          _navItem(LucideIcons.settings, '설정', 2, theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _navItem(IconData icon, String label, int index, Map<String, dynamic> theme) {
+    final active = _activeTab == index;
+    return GestureDetector(
+      onTap: () => setState(() => _activeTab = index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: active ? theme['primary'] : Colors.grey, size: 26),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: active ? theme['primary'] : Colors.grey,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _navCenterBtn(Map<String, dynamic> theme) {
+    return GestureDetector(
+      onTap: () => setState(() => _activeTab = 1),
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          gradient: theme['gradient'],
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: theme['primary'].withOpacity(0.4),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Icon(LucideIcons.search, color: Colors.white, size: 28),
+      ),
+    );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('링크를 열 수 없습니다: $url')),
+        );
+      }
+    }
+  }
+}
+
+// 로딩 스켈레톤 (커스텀)
+class _LoadingNoticeCard extends StatelessWidget {
+  const _LoadingNoticeCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 60,
+            height: 20,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            height: 16,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            width: 200,
+            height: 16,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                width: 100,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              Container(
+                width: 30,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

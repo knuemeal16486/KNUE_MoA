@@ -1,10 +1,12 @@
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as parser;
 import 'package:intl/intl.dart';
 import 'package:knue_moa/models/notice_model.dart';
+import 'package:hive/hive.dart';
 
 class KnueScraper {
-  // 사용자님께서 주신 모든 링크를 하나도 빠짐없이 그룹화했습니다.
+  // 모든 게시판 그룹 (기존과 동일)
   final Map<String, Map<String, String>> boardGroups = {
     'MAIN': {
       '대학소식': 'https://www.knue.ac.kr/www/selectBbsNttList.do?bbsNo=25&key=806',
@@ -58,41 +60,120 @@ class KnueScraper {
     }
   };
 
-  // 모든 데이터를 한 번에 가져오는 함수 (메인 공지 우선)
-  Future<List<Notice>> fetchAllNotices() async {
-    List<Notice> all = [];
-    // 성능을 위해 메인 그룹은 실제 크롤링하여 리스트화
-    for (var entry in boardGroups['MAIN']!.entries) {
-      var res = await _fetchBoard('MAIN', entry.key, entry.value);
-      all.addAll(res);
+  // Hive 박스 이름
+  static const String noticeBoxName = 'notices';
+
+  // 최대 재시도 횟수
+  static const int maxRetries = 3;
+
+  // 모든 게시판에서 공지 가져오기 (캐싱 포함)
+  Future<List<Notice>> fetchAllNotices({bool forceRefresh = false}) async {
+    // Hive 박스 열기
+    final box = await Hive.openBox<Notice>(noticeBoxName);
+
+    // 캐시된 데이터가 있고 강제 새로고침이 아니면 캐시 반환
+    if (!forceRefresh && box.isNotEmpty) {
+      return box.values.toList()..sort((a, b) => b.date.compareTo(a.date));
     }
+
+    // 새 데이터 가져오기
+    List<Notice> all = [];
+    for (var entry in boardGroups['MAIN']!.entries) {
+      try {
+        final notices = await _fetchBoardWithRetry('MAIN', entry.key, entry.value);
+        all.addAll(notices);
+      } catch (e) {
+        print('Error fetching ${entry.key}: $e');
+      }
+    }
+
     all.sort((a, b) => b.date.compareTo(a.date));
+
+    // Hive에 저장 (기존 데이터 삭제 후 추가)
+    await box.clear();
+    await box.addAll(all);
+
     return all;
   }
 
-  Future<List<Notice>> _fetchBoard(String group, String category, String url) async {
+  // 재시도 로직이 포함된 게시판 가져오기
+  Future<List<Notice>> _fetchBoardWithRetry(String group, String category, String url, {int retry = 0}) async {
     try {
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) {
-        var doc = parser.parse(response.body);
-        return doc.querySelectorAll('tbody tr').map((row) {
-          var titleEl = row.querySelector('.p-subject a');
-          var tds = row.querySelectorAll('td');
-          String title = titleEl?.text.trim() ?? "제목 없음";
-          String date = tds.length > 4 ? tds[4].text.trim() : "";
-          return Notice(
-            id: (title + date).hashCode,
-            category: category,
-            group: group,
-            title: title,
-            date: date,
-            author: tds.length > 2 ? tds[2].text.trim() : "학교",
-            link: url, // 실제 게시판 연동 URL
-            isNew: date == DateFormat('yyyy.MM.dd').format(DateTime.now()),
-          );
-        }).toList();
+      return await _fetchBoard(group, category, url);
+    } catch (e) {
+      if (retry < maxRetries) {
+        await Future.delayed(Duration(seconds: 1 * (retry + 1)));
+        return _fetchBoardWithRetry(group, category, url, retry: retry + 1);
       }
-    } catch (e) { print(e); }
-    return [];
+      rethrow;
+    }
+  }
+
+  Future<List<Notice>> _fetchBoard(String group, String category, String url) async {
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode != 200) {
+      throw Exception('HTTP ${response.statusCode}');
+    }
+
+    var doc = parser.parse(utf8.decode(response.bodyBytes));
+    var rows = doc.querySelectorAll('tbody tr');
+
+    return rows.map((row) {
+      try {
+        // 제목과 링크 추출
+        var titleEl = row.querySelector('.p-subject a');
+        String title = titleEl?.text.trim() ?? '제목 없음';
+        String relativeLink = titleEl?.attributes['href'] ?? '';
+        String fullLink = _resolveLink(url, relativeLink);
+
+        // 날짜 추출 (td 인덱스는 게시판마다 다를 수 있음, 여기서는 대략 4번째)
+        var tds = row.querySelectorAll('td');
+        String date = tds.length > 4 ? tds[4].text.trim() : '';
+        String author = tds.length > 2 ? tds[2].text.trim() : '학교';
+
+        // ID 생성 (게시판 URL + 제목 + 날짜)로 고유성 확보
+        int id = _generateId(group, category, title, date, fullLink);
+
+        // 오늘 날짜인지 확인
+        bool isNew = date.contains(DateFormat('yyyy.MM.dd').format(DateTime.now()));
+
+        return Notice(
+          id: id,
+          category: category,
+          group: group,
+          title: title,
+          date: date,
+          author: author,
+          link: fullLink,
+          isNew: isNew,
+        );
+      } catch (e) {
+        print('Parsing error in $category: $e');
+        // 파싱 실패 시 더미 객체 반환하지 않고 건너뜀
+        rethrow;
+      }
+    }).toList();
+  }
+
+  // 상대 경로를 절대 경로로 변환
+  String _resolveLink(String baseUrl, String relative) {
+    if (relative.isEmpty) return baseUrl;
+    if (relative.startsWith('http')) return relative;
+    try {
+      var uri = Uri.parse(baseUrl);
+      var resolved = uri.resolve(relative);
+      return resolved.toString();
+    } catch (e) {
+      return baseUrl + (relative.startsWith('/') ? relative : '/$relative');
+    }
+  }
+
+  // 고유 ID 생성
+  int _generateId(String group, String category, String title, String date, String link) {
+    return Object.hash(group, category, title, date, link);
   }
 }
