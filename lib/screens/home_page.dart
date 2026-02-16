@@ -29,10 +29,8 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
   Timer? _bannerTimer;
 
   late final TabController _tabController;
-
   final KnueScraper _scraper = KnueScraper();
 
-  // 그룹 재정의: DEPT1-4를 'DEPT'로 통합
   final Map<String, Map<String, dynamic>> _noticeGroups = {
     'MY': {'label': 'MY', 'icon': LucideIcons.star},
     'MAIN': {'label': '본부 공지', 'icon': LucideIcons.building2},
@@ -69,34 +67,45 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    final themeKey = ref.watch(themeKeyProvider);
-    final themeData = AppTheme.getTheme(themeKey);
+    final primaryColor = ref.watch(themeColorProvider);
+    // 기존 코드 호환용 theme 맵
+    final themeData = {
+      'primary': primaryColor,
+      'gradient': LinearGradient(
+        colors: [primaryColor, primaryColor.withOpacity(0.7)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      'bgLight': primaryColor.withOpacity(0.1),
+      'bannerBg': Colors.black87,
+    };
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            if (_activeTab != 1) _buildHeader(themeData),
+            if (_activeTab != 1) _buildHeader(primaryColor),
             Expanded(
               child: IndexedStack(
                 index: _activeTab,
                 children: [
                   _buildHomeTab(themeData),
                   _buildSearchTab(themeData),
-                  _buildSettingsTab(themeData),
+                  _buildSettingsTab(),
                 ],
               ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(themeData),
+      bottomNavigationBar: _buildBottomNav(primaryColor),
     );
   }
 
-  Widget _buildHeader(Map<String, dynamic> theme) {
+  Widget _buildHeader(Color primaryColor) {
     final isAlarmOn = ref.watch(alarmProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
       child: Row(
@@ -104,10 +113,10 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
         children: [
           RichText(
             text: TextSpan(
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B)),
               children: [
                 const TextSpan(text: 'KNUE '),
-                TextSpan(text: 'MoA', style: TextStyle(color: theme['primary'])),
+                TextSpan(text: 'MoA', style: TextStyle(color: primaryColor)),
               ],
             ),
           ),
@@ -115,7 +124,7 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
             onPressed: () => ref.read(alarmProvider.notifier).state = !isAlarmOn,
             icon: Icon(
               isAlarmOn ? LucideIcons.bell : LucideIcons.bellOff,
-              color: const Color(0xFF334155),
+              color: isDark ? Colors.grey : const Color(0xFF334155),
             ),
           ),
         ],
@@ -154,7 +163,7 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: theme['primary'].withOpacity(0.3),
+            color: (theme['primary'] as Color).withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -254,7 +263,12 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
     final notice = notices[_aiBannerIndex % notices.length];
 
     return GestureDetector(
-      onTap: () => _launchUrl(notice.link),
+      onTap: () async {
+        final uri = Uri.parse(notice.link);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      },
       child: Container(
         margin: const EdgeInsets.all(20),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -298,6 +312,7 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
   }
 
   Widget _buildFolderSystem(Map<String, dynamic> theme) {
+    final primary = theme['primary'] as Color;
     return Column(
       children: [
         SingleChildScrollView(
@@ -320,16 +335,16 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: active ? theme['bgLight'] : Colors.white,
+                          color: active ? primary.withOpacity(0.1) : Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(
-                            color: active ? theme['primary'] : Colors.grey.shade200,
+                            color: active ? primary : Colors.grey.shade200,
                             width: active ? 2 : 1,
                           ),
                         ),
                         child: Icon(
                           entry.value['icon'],
-                          color: active ? theme['primary'] : Colors.grey.shade400,
+                          color: active ? primary : Colors.grey.shade400,
                           size: 24,
                         ),
                       ),
@@ -339,7 +354,7 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: active ? theme['primary'] : Colors.grey,
+                          color: active ? primary : Colors.grey,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -356,16 +371,13 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
     );
   }
 
-  // 게시판 선택기 (그룹에 따라 다른 board 목록 표시)
   Widget _buildBoardSelector(Map<String, dynamic> theme) {
     List<String> boards = [];
-
     if (_selectedGroup == 'MAIN') {
       boards = ['ALL', ...(_scraper.boardGroups['MAIN']?.keys ?? [])];
     } else if (_selectedGroup == 'ANNEX') {
       boards = ['ALL', ...(_scraper.boardGroups['ANNEX']?.keys ?? [])];
     } else if (_selectedGroup == 'DEPT') {
-      // 모든 학과 게시판 통합
       Set<String> deptBoards = {};
       ['DEPT1', 'DEPT2', 'DEPT3', 'DEPT4'].forEach((key) {
         deptBoards.addAll(_scraper.boardGroups[key]?.keys ?? []);
@@ -374,6 +386,8 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
     } else if (_selectedGroup == 'GRAD') {
       boards = ['ALL', ...(_scraper.boardGroups['GRAD']?.keys ?? [])];
     }
+
+    final primary = theme['primary'] as Color;
 
     return Container(
       height: 50,
@@ -391,12 +405,16 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
               label: Text(board == 'ALL' ? '전체보기' : board),
               selected: selected,
               onSelected: (s) => setState(() => _selectedBoard = board),
-              selectedColor: theme['bgLight'],
+              selectedColor: primary.withOpacity(0.1),
+              backgroundColor: Theme.of(context).cardColor,
               labelStyle: TextStyle(
-                color: selected ? theme['primary'] : Colors.grey.shade700,
+                color: selected ? primary : Colors.grey.shade700,
                 fontWeight: selected ? FontWeight.bold : FontWeight.normal,
               ),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+                side: BorderSide(color: selected ? primary : Colors.transparent),
+              ),
             ),
           );
         },
@@ -411,39 +429,24 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
     return noticesAsync.when(
       data: (notices) {
         if (notices.isEmpty) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(40),
-              child: Text('공지사항이 없습니다.'),
-            ),
-          );
+          return const Center(child: Padding(padding: EdgeInsets.all(40), child: Text('공지사항이 없습니다.')));
         }
 
         final filtered = notices.where((n) {
           if (_selectedGroup == 'MY') return favorites.contains(n.id);
           
-          // 그룹별 필터링
           if (_selectedGroup == 'DEPT') {
-            // 학과 그룹: n.group이 DEPT1-4 중 하나여야 함
             if (!n.group.startsWith('DEPT')) return false;
-            if (_selectedBoard != 'ALL') {
-              return n.category == _selectedBoard;
-            }
+            if (_selectedBoard != 'ALL') return n.category == _selectedBoard;
             return true;
           } else {
-            // 다른 그룹
             if (_selectedBoard != 'ALL') return n.category == _selectedBoard;
             return n.group == _selectedGroup;
           }
         }).toList();
 
         if (filtered.isEmpty) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(40),
-              child: Text('해당 게시판에 공지가 없습니다.'),
-            ),
-          );
+          return const Center(child: Padding(padding: EdgeInsets.all(40), child: Text('해당 게시판에 공지가 없습니다.')));
         }
 
         return AnimationLimiter(
@@ -467,52 +470,22 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
           ),
         );
       },
-      error: (error, stack) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            children: [
-              Icon(LucideIcons.wifiOff, size: 60, color: Colors.grey.shade400),
-              const SizedBox(height: 16),
-              Text(
-                '데이터를 불러올 수 없습니다',
-                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                error.toString(),
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  ref.invalidate(noticesProvider);
-                },
-                child: const Text('다시 시도'),
-              ),
-            ],
-          ),
-        ),
-      ),
-      loading: () => ListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: 5,
-        itemBuilder: (ctx, i) => const _LoadingNoticeCard(),
-      ),
+      error: (error, stack) => Center(child: Text('에러가 발생했습니다: $error')),
+      loading: () => const Center(child: CircularProgressIndicator()),
     );
   }
 
-  // ========== 검색 탭 ==========
+  // ========== [수정] 검색 탭 ==========
   Widget _buildSearchTab(Map<String, dynamic> theme) {
     final noticesAsync = ref.watch(noticesProvider);
     final notices = noticesAsync.valueOrNull ?? [];
+    final primary = theme['primary'] as Color;
 
+    // [수정] 제목 정제 후 검색
     final results = notices.where((n) {
+      final cleanTitle = n.title.replaceAll('새글', '').replaceAll('[새글]', '').trim();
       final matchesQuery = _searchQuery.isEmpty ||
-          n.title.toLowerCase().contains(_searchQuery.toLowerCase());
+          cleanTitle.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesScope = _searchScope == '전체' || n.category == _searchScope;
       return matchesQuery && matchesScope;
     }).toList();
@@ -533,7 +506,7 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
               hintText: '제목으로 검색',
               prefixIcon: const Icon(LucideIcons.search),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).cardColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(20),
                 borderSide: BorderSide.none,
@@ -542,22 +515,61 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            '카테고리',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: _buildSearchCategoryList(theme),
-          ),
+          
+          // [수정] 검색어가 없으면 카테고리 칩, 있으면 결과 리스트
+          if (_searchQuery.isEmpty) ...[
+            const Text(
+              '카테고리',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: _buildSearchCategoryList(theme),
+            ),
+          ] else ...[
+             Row(
+               children: [
+                 const Text(
+                  '검색 결과',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
+                 ),
+                 const SizedBox(width: 8),
+                 Text(
+                  '${results.length}건',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: primary),
+                 ),
+               ],
+             ),
+             const SizedBox(height: 12),
+             Expanded(
+               child: results.isEmpty 
+               ? const Center(child: Text("검색 결과가 없습니다."))
+               : AnimationLimiter(
+                  child: ListView.builder(
+                    itemCount: results.length,
+                    itemBuilder: (ctx, i) {
+                      return AnimationConfiguration.staggeredList(
+                        position: i,
+                        duration: const Duration(milliseconds: 375),
+                        child: SlideAnimation(
+                          verticalOffset: 50.0,
+                          child: FadeInAnimation(
+                            child: NoticeCard(notice: results[i], themeData: theme),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+               ),
+             ),
+          ]
         ],
       ),
     );
   }
 
-  // 검색 카테고리를 섹션별로 정리한 리스트
   Widget _buildSearchCategoryList(Map<String, dynamic> theme) {
-    // 섹션 정의
+    final primary = theme['primary'] as Color;
     final sections = [
       {'title': '본부 공지', 'boards': _scraper.boardGroups['MAIN']?.keys.toList() ?? []},
       {'title': '부속 기관', 'boards': _scraper.boardGroups['ANNEX']?.keys.toList() ?? []},
@@ -574,10 +586,9 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
     ];
 
     return ListView.builder(
-      itemCount: sections.length + 1, // +1 for "전체" at top
+      itemCount: sections.length + 1,
       itemBuilder: (ctx, index) {
         if (index == 0) {
-          // "전체" 선택 칩 (상단에 고정)
           return Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: Wrap(
@@ -587,10 +598,12 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
                   label: const Text('전체'),
                   selected: _searchScope == '전체',
                   onSelected: (s) => setState(() => _searchScope = '전체'),
-                  selectedColor: theme['bgLight'],
+                  selectedColor: primary.withOpacity(0.1),
+                  backgroundColor: Theme.of(context).cardColor,
                   labelStyle: TextStyle(
-                    color: _searchScope == '전체' ? theme['primary'] : Colors.grey.shade700,
+                    color: _searchScope == '전체' ? primary : Colors.grey.shade700,
                   ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30), side: BorderSide(color: Colors.transparent)),
                 ),
               ],
             ),
@@ -611,7 +624,7 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: theme['primary'],
+                  color: primary,
                 ),
               ),
             ),
@@ -624,11 +637,13 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
                   label: Text(board),
                   selected: selected,
                   onSelected: (s) => setState(() => _searchScope = board),
-                  selectedColor: theme['bgLight'],
+                  selectedColor: primary.withOpacity(0.1),
+                  backgroundColor: Theme.of(context).cardColor,
                   labelStyle: TextStyle(
-                    color: selected ? theme['primary'] : Colors.grey.shade700,
+                    color: selected ? primary : Colors.grey.shade700,
                     fontSize: 12,
                   ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30), side: BorderSide(color: Colors.transparent)),
                 );
               }).toList(),
             ),
@@ -639,158 +654,408 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
     );
   }
 
-  // ========== 설정 탭 ==========
-  Widget _buildSettingsTab(Map<String, dynamic> theme) {
-    final themeKey = ref.watch(themeKeyProvider);
-    final isAlarmOn = ref.watch(alarmProvider);
+  // ========== [수정] 설정 탭 (KNUE Mate 스타일) ==========
+  Widget _buildSettingsTab() {
+    return CustomScrollView(
+      slivers: [
+        SliverList(
+          delegate: SliverChildListDelegate([
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '설정',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 30),
 
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        const Text(
-          '설정',
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 30),
-        _buildSettingsGroup(
-          '알림 및 개인화',
-          [
-            ListTile(
-              leading: const Icon(LucideIcons.bell),
-              title: const Text('키워드 알림'),
-              trailing: Switch(
-                value: isAlarmOn,
-                activeColor: theme['primary'],
-                onChanged: (v) => ref.read(alarmProvider.notifier).state = v,
+                  _buildSectionTitle('앱 테마'),
+                  _buildSettingsCard(
+                    children: [
+                      _buildThemeModeSelector(), 
+                      _buildDivider(),
+                      _buildColorPalette(), 
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 24),
+
+                  _buildSectionTitle('알림'),
+                  _buildSettingsCard(
+                    children: [
+                      _buildSwitchTile(
+                        icon: LucideIcons.bell,
+                        title: '키워드 알림',
+                        subtitle: '등록한 키워드 포함 시 알림 수신',
+                        value: ref.watch(alarmProvider),
+                        onChanged: (v) => ref.read(alarmProvider.notifier).state = v,
+                        color: Colors.orange,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  _buildSectionTitle('앱 정보'),
+                  _buildSettingsCard(
+                    children: [
+                      _buildInfoTile(
+                        icon: LucideIcons.info,
+                        title: '버전 정보',
+                        trailing: 'v1.2.0',
+                        color: Colors.blue,
+                        onTap: () {},
+                      ),
+                      _buildDivider(),
+                      _buildInfoTile(
+                        icon: LucideIcons.user,
+                        title: '개발자 정보',
+                        subtitle: '한국교원대학교 예비교사',
+                        color: Colors.purple,
+                        onTap: () => _showDeveloperInfo(context),
+                      ),
+                      _buildDivider(),
+                      _buildInfoTile(
+                        icon: LucideIcons.github,
+                        title: '오픈소스 라이선스',
+                        color: Colors.grey,
+                        onTap: () => showLicensePage(
+                          context: context,
+                          applicationName: 'KNUE MoA', 
+                          applicationVersion: '1.2.0',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 40),
+                  Center(
+                    child: Text(
+                      "© 2026 KNUE MoA",
+                      style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
-            const Divider(height: 0),
-            ListTile(
-              leading: const Icon(LucideIcons.palette),
-              title: const Text('테마 색상'),
-              trailing: _buildThemeSelector(themeKey),
-            ),
-          ],
-          theme,
-        ),
-        const SizedBox(height: 20),
-        _buildSettingsGroup(
-          '앱 정보',
-          [
-            const ListTile(
-              leading: Icon(LucideIcons.info),
-              title: Text('버전'),
-              trailing: Text('v1.2.0'),
-            ),
-            const Divider(height: 0),
-            const ListTile(
-              leading: Icon(LucideIcons.user),
-              title: Text('개발자'),
-              subtitle: Text('한국교원대학교 예비교사'),
-            ),
-          ],
-          theme,
+          ]),
         ),
       ],
     );
   }
 
-  Widget _buildSettingsGroup(String title, List<Widget> children, Map<String, dynamic> theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: theme['primary'],
-          ),
-        ),
-        const SizedBox(height: 10),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.grey.shade100),
-          ),
-          child: Column(children: children),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildThemeSelector(String currentKey) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: ['blue', 'green', 'orange'].map((key) {
-        final isSelected = currentKey == key;
-        Color color;
-        switch (key) {
-          case 'blue':
-            color = Colors.blue;
-            break;
-          case 'green':
-            color = Colors.green;
-            break;
-          case 'orange':
-            color = Colors.orange;
-            break;
-          default:
-            color = Colors.blue;
-        }
-        return GestureDetector(
-          onTap: () => ref.read(themeKeyProvider.notifier).state = key,
-          child: Container(
-            width: 32,
-            height: 32,
-            margin: const EdgeInsets.only(left: 8),
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              border: isSelected ? Border.all(color: Colors.black, width: 2) : null,
-              boxShadow: isSelected
-                  ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 6)]
-                  : null,
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  // ========== 하단 네비게이션 ==========
-  Widget _buildBottomNav(Map<String, dynamic> theme) {
-    return Container(
-      padding: const EdgeInsets.only(bottom: 25, top: 10),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 12),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey),
       ),
+    );
+  }
+
+  Widget _buildSettingsCard({required List<Widget> children}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Divider(height: 1, thickness: 1, color: Theme.of(context).dividerColor);
+  }
+
+  Widget _buildThemeModeSelector() {
+    final currentMode = ref.watch(themeModeProvider);
+    return Padding(
+      padding: const EdgeInsets.all(8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _navItem(LucideIcons.home, '홈', 0, theme),
-          _navCenterBtn(theme),
-          _navItem(LucideIcons.settings, '설정', 2, theme),
+          _buildThemeModeItem('라이트', LucideIcons.sun, ThemeMode.light, currentMode),
+          _buildThemeModeItem('다크', LucideIcons.moon, ThemeMode.dark, currentMode),
+          _buildThemeModeItem('시스템', LucideIcons.smartphone, ThemeMode.system, currentMode),
         ],
       ),
     );
   }
 
-  Widget _navItem(IconData icon, String label, int index, Map<String, dynamic> theme) {
+  Widget _buildThemeModeItem(String label, IconData icon, ThemeMode mode, ThemeMode current) {
+    final isSelected = mode == current;
+    final primary = Theme.of(context).primaryColor;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => ref.read(themeModeProvider.notifier).setMode(mode),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? primary.withOpacity(0.1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? primary : Colors.grey.withOpacity(0.2),
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: isSelected ? primary : Colors.grey),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? primary : Colors.grey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildColorPalette() {
+    final currentColor = ref.watch(themeColorProvider);
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("테마 색상", style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: AppTheme.palette.map((color) {
+              final isSelected = color.value == currentColor.value;
+              return GestureDetector(
+                onTap: () => ref.read(themeColorProvider.notifier).setColor(color),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
+                    boxShadow: [
+                      if (isSelected)
+                        BoxShadow(color: color.withOpacity(0.5), blurRadius: 6),
+                    ],
+                  ),
+                  child: isSelected 
+                    ? const Icon(Icons.check, color: Colors.white, size: 18) 
+                    : null,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwitchTile({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    required Color color,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: Colors.white,
+            activeTrackColor: color,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoTile({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    String? trailing,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (trailing != null)
+              Text(
+                trailing,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade400),
+              )
+            else
+              Icon(LucideIcons.chevronRight, size: 18, color: Colors.grey.shade300),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeveloperInfo(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: 400,
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 40),
+             Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.blue.withOpacity(0.1),
+              ),
+              child: const Icon(LucideIcons.user, size: 50, color: Colors.blue),
+            ),
+            const SizedBox(height: 20),
+            const Text("Hwang", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text("KNUE Physics & Elementary Edu", style: TextStyle(fontSize: 16, color: Colors.grey.shade500)),
+            const SizedBox(height: 30),
+            _buildDevInfoRow(LucideIcons.graduationCap, "소속", "한국교원대 물리교육/초등교육"),
+            _buildDevInfoRow(LucideIcons.code, "관심분야", "Flutter, Embedded, AI"),
+            _buildDevInfoRow(LucideIcons.mail, "이메일", "knuemeal16486@gmail.com"),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDevInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Colors.grey.shade400),
+          const SizedBox(width: 20),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(width: 20),
+          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNav(Color primaryColor) {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 25, top: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        border: Border(top: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _navItem(LucideIcons.home, '홈', 0, primaryColor),
+          _navCenterBtn(primaryColor),
+          _navItem(LucideIcons.settings, '설정', 2, primaryColor),
+        ],
+      ),
+    );
+  }
+
+  Widget _navItem(IconData icon, String label, int index, Color primaryColor) {
     final active = _activeTab == index;
     return GestureDetector(
       onTap: () => setState(() => _activeTab = index),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: active ? theme['primary'] : Colors.grey, size: 26),
+          Icon(icon, color: active ? primaryColor : Colors.grey, size: 26),
           const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
-              color: active ? theme['primary'] : Colors.grey,
+              color: active ? primaryColor : Colors.grey,
               fontSize: 11,
               fontWeight: FontWeight.bold,
             ),
@@ -800,108 +1065,24 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
     );
   }
 
-  Widget _navCenterBtn(Map<String, dynamic> theme) {
+  Widget _navCenterBtn(Color primaryColor) {
     return GestureDetector(
       onTap: () => setState(() => _activeTab = 1),
       child: Container(
         width: 56,
         height: 56,
         decoration: BoxDecoration(
-          gradient: theme['gradient'],
+          gradient: LinearGradient(colors: [primaryColor, primaryColor.withOpacity(0.7)]),
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: theme['primary'].withOpacity(0.4),
+              color: primaryColor.withOpacity(0.4),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
           ],
         ),
         child: const Icon(LucideIcons.search, color: Colors.white, size: 28),
-      ),
-    );
-  }
-
-  Future<void> _launchUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('링크를 열 수 없습니다: $url')),
-        );
-      }
-    }
-  }
-}
-
-// 로딩 스켈레톤 (커스텀)
-class _LoadingNoticeCard extends StatelessWidget {
-  const _LoadingNoticeCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 60,
-            height: 20,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            width: double.infinity,
-            height: 16,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            width: 200,
-            height: 16,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                width: 100,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              Container(
-                width: 30,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }

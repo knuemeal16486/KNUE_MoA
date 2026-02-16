@@ -127,6 +127,10 @@ class KnueScraper {
         // 제목과 링크 추출
         var titleEl = row.querySelector('.p-subject a');
         String title = titleEl?.text.trim() ?? '제목 없음';
+
+        // 🔥 제목에서 '새글' 관련 문자열 제거 (대괄호 포함, 앞뒤 공백 처리)
+        title = title.replaceAll(RegExp(r'\[?새글\]?\s*'), '').trim();
+
         String relativeLink = titleEl?.attributes['href'] ?? '';
         String fullLink = _resolveLink(url, relativeLink);
 
