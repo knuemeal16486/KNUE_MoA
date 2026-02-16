@@ -30,36 +30,50 @@ class KnueScraper {
       '신문방송사': 'https://news.knue.ac.kr/',
     },
     'DEPT1': {
-      '교육학과': 'https://www.knue.ac.kr/education/index.do',
-      '유아교육': 'https://www.knue.ac.kr/ece/index.do',
-      '초등교육': 'https://cafe.daum.net/knue-primary',
-      '특수교육': 'https://www.knue.ac.kr/sped/index.do',
+      '교육학과': 'https://www.knue.ac.kr/education/board/list.do?boardId=BBS_0000176',
+      '유아교육과': 'https://www.knue.ac.kr/ece/board/list.do?boardId=BBS_0000185',
+      // 초등교육과는 다음카페라 크롤링 방식이 다를 수 있음 (일단 URL 매핑만)
+      '초등교육과': 'https://cafe.daum.net/knue-primary', 
+      '특수교육과': 'https://www.knue.ac.kr/sped/board/list.do?boardId=BBS_0000203',
     },
     'DEPT2': {
-      '국어교육': 'https://www.knue.ac.kr/korean/index.do', '영어교육': 'https://www.knue.ac.kr/english/index.do',
-      '독어교육': 'https://www.knue.ac.kr/german/index.do', '불어교육': 'https://www.knue.ac.kr/french/index.do',
-      '중국어교육': 'https://www.knue.ac.kr/chinese/index.do', '윤리교육': 'https://www.knue.ac.kr/ethics/index.do',
-      '일반사회': 'https://www.knue.ac.kr/social/index.do', '지리교육': 'https://www.knue.ac.kr/geography/index.do',
-      '역사교육': 'https://www.knue.ac.kr/history/index.do',
+      '국어교육과': 'https://www.knue.ac.kr/korean/board/list.do?boardId=BBS_0000213',
+      '영어교육과': 'https://www.knue.ac.kr/english/board/list.do?boardId=BBS_0000223',
+      '독어교육과': 'https://www.knue.ac.kr/german/board/list.do?boardId=BBS_0000233',
+      '불어교육과': 'https://www.knue.ac.kr/french/board/list.do?boardId=BBS_0000243',
+      '중국어교육과': 'https://www.knue.ac.kr/chinese/board/list.do?boardId=BBS_0000253',
+      '윤리교육과': 'https://www.knue.ac.kr/ethics/board/list.do?boardId=BBS_0000263',
+      '일반사회교육과': 'https://www.knue.ac.kr/social/board/list.do?boardId=BBS_0000273',
+      '지리교육과': 'https://www.knue.ac.kr/geography/board/list.do?boardId=BBS_0000283',
+      '역사교육과': 'https://www.knue.ac.kr/history/board/list.do?boardId=BBS_0000293',
     },
     'DEPT3': {
-      '수학교육': 'https://www.knue.ac.kr/math/index.do', '물리교육': 'https://www.knue.ac.kr/phys/index.do',
-      '화학교육': 'https://www.knue.ac.kr/chemedu/index.do', '생물교육': 'https://www.knue.ac.kr/bioedu/index.do',
-      '지구과학': 'https://www.knue.ac.kr/earth/index.do', '가정교육': 'https://www.knue.ac.kr/homeedu/index.do',
-      '환경교육': 'https://www.knue.ac.kr/envi/index.do', '기술교육': 'https://www.knue.ac.kr/techedu/index.do',
-      '컴퓨터교육': 'https://www.knue.ac.kr/comedu/index.do',
+      '수학교육과': 'https://www.knue.ac.kr/math/board/list.do?boardId=BBS_0000303',
+      '물리교육과': 'https://www.knue.ac.kr/phys/board/list.do?boardId=BBS_0000313',
+      '화학교육과': 'https://www.knue.ac.kr/chemedu/board/list.do?boardId=BBS_0000323',
+      '생물교육과': 'https://www.knue.ac.kr/bioedu/board/list.do?boardId=BBS_0000333',
+      '지구과학교육과': 'https://www.knue.ac.kr/earth/board/list.do?boardId=BBS_0000343',
+      '가정교육과': 'https://www.knue.ac.kr/homeedu/board/list.do?boardId=BBS_0000353',
+      '환경교육과': 'https://www.knue.ac.kr/envi/board/list.do?boardId=BBS_0000363',
+      '기술교육과': 'https://www.knue.ac.kr/techedu/board/list.do?boardId=BBS_0000373',
+      '컴퓨터교육과': 'https://www.knue.ac.kr/comedu/board/list.do?boardId=BBS_0000383',
     },
     'DEPT4': {
-      '음악교육': 'https://www.knue.ac.kr/music/index.do', '미술교육': 'https://www.knue.ac.kr/artedu/index.do',
-      '체육교육': 'https://www.knue.ac.kr/phy/index.do',
+      '음악교육과': 'https://www.knue.ac.kr/music/board/list.do?boardId=BBS_0000393',
+      '미술교육과': 'https://www.knue.ac.kr/artedu/board/list.do?boardId=BBS_0000403',
+      '체육교육과': 'https://www.knue.ac.kr/phy/board/list.do?boardId=BBS_0000413',
     },
     'GRAD': {
-      '대학원': 'https://www.knue.ac.kr/grad/selectBbsNttList.do?bbsNo=67&key=645',
-      '교육대학원': 'https://www.knue.ac.kr/grad/selectBbsNttList.do?bbsNo=68&key=646',
-      '정책대학원': 'https://www.knue.ac.kr/edupol/selectBbsNttList.do?bbsNo=73&key=659',
-    }
+      '대학원공지': 'https://grad.knue.ac.kr/board/list.do?boardId=BBS_0000676',
+    },
   };
 
+static const Map<String, List<String>> collegeStructure = {
+    '제1대학': ['교육학과', '유아교육과', '초등교육과', '특수교육과'],
+    '제2대학': ['국어교육과', '영어교육과', '독어교육과', '불어교육과', '중국어교육과', '윤리교육과', '일반사회교육과', '지리교육과', '역사교육과'],
+    '제3대학': ['수학교육과', '물리교육과', '화학교육과', '생물교육과', '지구과학교육과', '가정교육과', '환경교육과', '기술교육과', '컴퓨터교육과'],
+    '제4대학': ['음악교육과', '미술교육과', '체육교육과'],
+  };
   // Hive 박스 이름
   static const String noticeBoxName = 'notices';
 
