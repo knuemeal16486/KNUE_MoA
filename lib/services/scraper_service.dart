@@ -25,47 +25,40 @@ class KnueScraper {
     'ANNEX': {
       '도서관일반': 'https://lib.knue.ac.kr/bbs/list/1',
       '도서관학술': 'https://lib.knue.ac.kr/bbs/list/2',
+      // 종합교육연수원 (공통 게시판 패턴)
       '종합연수원': 'https://tot.knue.ac.kr/common/bbs/management/selectCmmnBBSMgmtList.do?menuId=3000001755&bbsId=BBSMSTR_003000000094',
+      // 영유아교육연수원
       '영유아연수원': 'https://tot.knue.ac.kr/common/bbs/management/selectCmmnBBSMgmtList.do?menuId=3000001756&bbsId=BBSMSTR_003000000576',
-      '신문방송사': 'https://news.knue.ac.kr/',
+      // 신문방송사 (기사 목록 URL)
+      '신문방송사': 'https://m.news.knue.ac.kr/news/articleList.html?sc_section_code=S1N3',
     },
-    'DEPT1': {
-      '교육학과': 'https://www.knue.ac.kr/education/board/list.do?boardId=BBS_0000176',
-      '유아교육과': 'https://www.knue.ac.kr/ece/board/list.do?boardId=BBS_0000185',
-      // 초등교육과는 다음카페라 크롤링 방식이 다를 수 있음 (일단 URL 매핑만)
-      '초등교육과': 'https://cafe.daum.net/knue-primary', 
-      '특수교육과': 'https://www.knue.ac.kr/sped/board/list.do?boardId=BBS_0000203',
-    },
-    'DEPT2': {
-      '국어교육과': 'https://www.knue.ac.kr/korean/board/list.do?boardId=BBS_0000213',
-      '영어교육과': 'https://www.knue.ac.kr/english/board/list.do?boardId=BBS_0000223',
-      '독어교육과': 'https://www.knue.ac.kr/german/board/list.do?boardId=BBS_0000233',
-      '불어교육과': 'https://www.knue.ac.kr/french/board/list.do?boardId=BBS_0000243',
-      '중국어교육과': 'https://www.knue.ac.kr/chinese/board/list.do?boardId=BBS_0000253',
-      '윤리교육과': 'https://www.knue.ac.kr/ethics/board/list.do?boardId=BBS_0000263',
-      '일반사회교육과': 'https://www.knue.ac.kr/social/board/list.do?boardId=BBS_0000273',
-      '지리교육과': 'https://www.knue.ac.kr/geography/board/list.do?boardId=BBS_0000283',
-      '역사교육과': 'https://www.knue.ac.kr/history/board/list.do?boardId=BBS_0000293',
-    },
-    'DEPT3': {
-      '수학교육과': 'https://www.knue.ac.kr/math/board/list.do?boardId=BBS_0000303',
-      '물리교육과': 'https://www.knue.ac.kr/phys/board/list.do?boardId=BBS_0000313',
-      '화학교육과': 'https://www.knue.ac.kr/chemedu/board/list.do?boardId=BBS_0000323',
-      '생물교육과': 'https://www.knue.ac.kr/bioedu/board/list.do?boardId=BBS_0000333',
-      '지구과학교육과': 'https://www.knue.ac.kr/earth/board/list.do?boardId=BBS_0000343',
-      '가정교육과': 'https://www.knue.ac.kr/homeedu/board/list.do?boardId=BBS_0000353',
-      '환경교육과': 'https://www.knue.ac.kr/envi/board/list.do?boardId=BBS_0000363',
-      '기술교육과': 'https://www.knue.ac.kr/techedu/board/list.do?boardId=BBS_0000373',
-      '컴퓨터교육과': 'https://www.knue.ac.kr/comedu/board/list.do?boardId=BBS_0000383',
-    },
-    'DEPT4': {
-      '음악교육과': 'https://www.knue.ac.kr/music/board/list.do?boardId=BBS_0000393',
-      '미술교육과': 'https://www.knue.ac.kr/artedu/board/list.do?boardId=BBS_0000403',
-      '체육교육과': 'https://www.knue.ac.kr/phy/board/list.do?boardId=BBS_0000413',
+    'DEPT': {
+      // 제1대학
+      '교육학과': 'https://www.knue.ac.kr/education/selectBbsNttList.do?bbsNo=86&key=985',
+      '유아교육과': 'https://www.knue.ac.kr/ece/selectBbsNttList.do?bbsNo=93&key=1005',
+      '초등교육과': 'https://m.cafe.daum.net/knue-primary/HhZk', // 다음카페 모바일 주소 (공지사항 게시판 ID 확인 필요, 예시는 임의)
+      '특수교육과': 'https://www.knue.ac.kr/sped/selectBbsNttList.do?bbsNo=100&key=1025',
+      
+      // 제2대학 (확인된 일부만 적용, 나머지는 아래 패턴 참고하여 직접 수정 필요)
+      // 패턴: https://www.knue.ac.kr/[학과영문명]/selectBbsNttList.do?bbsNo=[번호]&key=[번호]
+      '국어교육과': 'https://www.knue.ac.kr/korean/selectBbsNttList.do?bbsNo=106&key=1044',
+      '영어교육과': 'https://www.knue.ac.kr/english/selectBbsNttList.do?bbsNo=113&key=1114',
+      
+      // 제3대학
+      '수학교육과': 'https://www.knue.ac.kr/math/selectBbsNttList.do?bbsNo=151&key=1231',
+      '물리교육과': 'https://www.knue.ac.kr/phys/selectBbsNttList.do?bbsNo=158&key=1251',
+      '컴퓨터교육과': 'https://www.knue.ac.kr/comedu/selectBbsNttList.do?bbsNo=187&key=1281',
+      
+      // 제4대학
+      '음악교육과': 'https://www.knue.ac.kr/music/selectBbsNttList.do?bbsNo=204&key=1314',
+      '체육교육과': 'https://www.knue.ac.kr/phy/selectBbsNttList.do?bbsNo=211&key=1327',
+      '미술교육과': 'https://www.knue.ac.kr/artedu/selectBbsNttList.do?bbsNo=218&key=1342',
     },
     'GRAD': {
-      '대학원공지': 'https://grad.knue.ac.kr/board/list.do?boardId=BBS_0000676',
-    },
+      '대학원': 'https://www.knue.ac.kr/grad/selectBbsNttList.do?bbsNo=67&key=645',
+      '교육대학원': 'https://www.knue.ac.kr/grad/selectBbsNttList.do?bbsNo=68&key=646',
+      '교육정책대학원': 'https://www.knue.ac.kr/edupol/selectBbsNttList.do?bbsNo=73&key=659',
+    }
   };
 
 static const Map<String, List<String>> collegeStructure = {
@@ -89,6 +82,7 @@ static const Map<String, List<String>> collegeStructure = {
     if (!forceRefresh && box.isNotEmpty) {
       return box.values.toList()..sort((a, b) => b.date.compareTo(a.date));
     }
+    
 
     // 새 데이터 가져오기
     List<Notice> all = [];
@@ -100,6 +94,7 @@ static const Map<String, List<String>> collegeStructure = {
         print('Error fetching ${entry.key}: $e');
       }
     }
+    
 
     all.sort((a, b) => b.date.compareTo(a.date));
 

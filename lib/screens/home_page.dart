@@ -7,8 +7,10 @@ import 'package:knue_moa/providers/providers.dart';
 import 'package:knue_moa/services/scraper_service.dart';
 import 'package:knue_moa/widgets/notice_card.dart';
 import 'package:knue_moa/widgets/keyword_chip.dart';
+import 'package:knue_moa/models/notice_model.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:knue_moa/screens/application_manage_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -22,7 +24,6 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    // 렉 방지: 테마 색상은 최상단에서 한 번만 구독하고, 하위 위젯은 const로 분리하여 불필요한 빌드 방지
     final primaryColor = ref.watch(themeColorProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -31,17 +32,14 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
       body: SafeArea(
         child: Column(
           children: [
-            // 상단 헤더 (설정 탭이 아닐 때만 표시)
             if (_activeTab != 1 && _activeTab != 2) _buildHeader(primaryColor, isDark),
-            
             Expanded(
-              // [중요] IndexedStack을 사용하여 탭 전환 시 상태 유지 및 렉 최소화
               child: IndexedStack(
                 index: _activeTab,
                 children: const [
-                  HomeTab(),      // 별도 위젯으로 분리 (const 사용 가능)
-                  SearchTab(),    // 별도 위젯으로 분리
-                  SettingsTab(),  // 별도 위젯으로 분리
+                  HomeTab(),
+                  SearchTab(),
+                  SettingsTab(),
                 ],
               ),
             ),
@@ -139,7 +137,7 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
 }
 
 // =============================================================================
-// [1] HomeTab (분리됨)
+// [1] HomeTab
 // =============================================================================
 class HomeTab extends ConsumerStatefulWidget {
   const HomeTab({super.key});
@@ -155,12 +153,14 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   bool _isInputVisible = false;
   final TextEditingController _keywordController = TextEditingController();
   
+  // [수정] 각 그룹별 아이콘과 고유 색상 정의
   final Map<String, Map<String, dynamic>> _noticeGroups = {
-    'MY': {'label': 'MY', 'icon': LucideIcons.star},
-    'MAIN': {'label': '본부 공지', 'icon': LucideIcons.building2},
-    'ANNEX': {'label': '부속 기관', 'icon': LucideIcons.library},
-    'DEPT': {'label': '학과 홈페이지', 'icon': LucideIcons.graduationCap},
-    'GRAD': {'label': '대학원', 'icon': LucideIcons.school},
+    'MY': {'label': 'MY', 'icon': LucideIcons.star, 'color': Colors.amber},
+    'FAV_BOARD': {'label': '즐겨찾기판', 'icon': LucideIcons.bookmark, 'color': Colors.redAccent},
+    'MAIN': {'label': '본부 공지', 'icon': LucideIcons.building2, 'color': Colors.blue},
+    'ANNEX': {'label': '부속 기관', 'icon': LucideIcons.library, 'color': Colors.green},
+    'DEPT': {'label': '학과 홈페이지', 'icon': LucideIcons.graduationCap, 'color': Colors.purple},
+    'GRAD': {'label': '대학원', 'icon': LucideIcons.school, 'color': Colors.orange},
   };
 
   @override
@@ -174,13 +174,14 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(noticesProvider);
+        ref.invalidate(aiRecommendationProvider); 
         return ref.read(refreshNoticesProvider.future);
       },
       child: ListView(
         padding: const EdgeInsets.only(bottom: 40),
         children: [
           _buildKeywordCard(themeData),
-          const AiBanner(), // 별도 위젯으로 분리하여 애니메이션 최적화
+          const AiBanner(), 
           _buildFolderSystem(themeData),
           _buildNoticeList(themeData),
         ],
@@ -230,6 +231,10 @@ class _HomeTabState extends ConsumerState<HomeTab> {
           child: Row(
             children: _noticeGroups.entries.map((entry) {
               final active = _selectedGroup == entry.key;
+              // [수정] 각 그룹별 고유 색상 사용
+              final groupColor = entry.value['color'] as Color; 
+              final effectiveColor = active ? groupColor : Colors.grey.shade400;
+              
               return GestureDetector(
                 onTap: () => setState(() {
                   _selectedGroup = entry.key;
@@ -247,11 +252,16 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: active ? primary.withOpacity(0.1) : Theme.of(context).cardColor, borderRadius: BorderRadius.circular(18), border: Border.all(color: active ? primary : Colors.grey.shade200, width: active ? 2 : 1)),
-                        child: Icon(entry.value['icon'], color: active ? primary : Colors.grey.shade400, size: 24),
+                        // [수정] 활성화 시 해당 그룹 색상의 배경 및 테두리 적용
+                        decoration: BoxDecoration(
+                          color: active ? groupColor.withOpacity(0.15) : Theme.of(context).cardColor, 
+                          borderRadius: BorderRadius.circular(18), 
+                          border: Border.all(color: active ? groupColor : Colors.grey.shade200, width: active ? 2 : 1)
+                        ),
+                        child: Icon(entry.value['icon'], color: effectiveColor, size: 24),
                       ),
                       const SizedBox(height: 6),
-                      Text(entry.value['label'], style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: active ? primary : Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(entry.value['label'], style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: active ? groupColor : Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
@@ -266,7 +276,34 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
   Widget _buildBoardSelector(Map<String, dynamic> theme) {
     final primary = theme['primary'] as Color;
-    final scraper = KnueScraper(); // Helper to access static structure or boardGroups
+    final scraper = KnueScraper();
+    final favBoards = ref.watch(boardFavoritesProvider);
+
+    if (_selectedGroup == 'FAV_BOARD') {
+      if (favBoards.isEmpty) {
+        return const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text("게시판 칩을 길게 눌러 즐겨찾기에 추가해보세요!", style: TextStyle(color: Colors.grey, fontSize: 12)),
+        );
+      }
+      return Container(
+        height: 50,
+        margin: const EdgeInsets.only(bottom: 12),
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          itemCount: favBoards.length,
+          itemBuilder: (ctx, index) {
+            final board = favBoards[index];
+            final selected = _selectedBoard == board;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _buildBoardChip(board, selected, primary, isRemovable: true),
+            );
+          },
+        ),
+      );
+    }
 
     if (_selectedGroup == 'DEPT') {
       return Column(
@@ -300,10 +337,13 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20),
               children: [
-                Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: const Text('전체'), selected: _selectedDept == 'ALL', onSelected: (s) => setState(() => _selectedDept = 'ALL'), selectedColor: primary.withOpacity(0.1), backgroundColor: Theme.of(context).cardColor, labelStyle: TextStyle(color: _selectedDept == 'ALL' ? primary : Colors.grey.shade700, fontSize: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.transparent)))),
+                 Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: const Text('전체'), selected: _selectedDept == 'ALL', onSelected: (s) => setState(() => _selectedDept = 'ALL'), selectedColor: primary.withOpacity(0.1), backgroundColor: Theme.of(context).cardColor, labelStyle: TextStyle(color: _selectedDept == 'ALL' ? primary : Colors.grey.shade700, fontSize: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.transparent)))),
                 ...(KnueScraper.collegeStructure[_selectedCollege] ?? []).map((dept) {
                   final selected = _selectedDept == dept;
-                  return Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(dept), selected: selected, onSelected: (s) => setState(() => _selectedDept = dept), selectedColor: primary.withOpacity(0.1), backgroundColor: Theme.of(context).cardColor, labelStyle: TextStyle(color: selected ? primary : Colors.grey.shade700, fontSize: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.transparent))));
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _buildBoardChip(dept, selected, primary), 
+                  );
                 }).toList(),
               ],
             ),
@@ -328,16 +368,51 @@ class _HomeTabState extends ConsumerState<HomeTab> {
           itemBuilder: (ctx, index) {
             final board = boards[index];
             final selected = _selectedBoard == board;
-            return Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(board == 'ALL' ? '전체보기' : board), selected: selected, onSelected: (s) => setState(() => _selectedBoard = board), selectedColor: primary.withOpacity(0.1), backgroundColor: Theme.of(context).cardColor, labelStyle: TextStyle(color: selected ? primary : Colors.grey.shade700, fontWeight: selected ? FontWeight.bold : FontWeight.normal), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30), side: BorderSide(color: selected ? primary : Colors.transparent))));
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _buildBoardChip(board, selected, primary),
+            );
           },
         ),
       );
     }
   }
 
+  Widget _buildBoardChip(String boardName, bool selected, Color primary, {bool isRemovable = false}) {
+    final isFav = ref.watch(boardFavoritesProvider).contains(boardName);
+    
+    return GestureDetector(
+      onLongPress: () {
+        if (boardName == 'ALL' || boardName == '전체') return;
+        ref.read(boardFavoritesProvider.notifier).toggle(boardName);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(isFav ? '$boardName 즐겨찾기 해제' : '$boardName 즐겨찾기 추가'),
+          duration: const Duration(milliseconds: 1000),
+        ));
+      },
+      child: ChoiceChip(
+        avatar: isFav && !isRemovable ? Icon(Icons.star, size: 14, color: primary) : null,
+        label: Text(boardName == 'ALL' ? '전체보기' : boardName),
+        selected: selected,
+        onSelected: (s) => setState(() => _selectedBoard = boardName),
+        selectedColor: primary.withOpacity(0.1),
+        backgroundColor: Theme.of(context).cardColor,
+        labelStyle: TextStyle(
+          color: selected ? primary : Colors.grey.shade700,
+          fontWeight: selected ? FontWeight.bold : FontWeight.normal
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30),
+          side: BorderSide(color: selected ? primary : Colors.transparent)
+        ),
+      ),
+    );
+  }
+
   Widget _buildNoticeList(Map<String, dynamic> theme) {
     final noticesAsync = ref.watch(noticesProvider);
     final favorites = ref.watch(favoritesNotifierProvider);
+    final favBoards = ref.watch(boardFavoritesProvider);
 
     return noticesAsync.when(
       data: (notices) {
@@ -346,6 +421,13 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         final filtered = notices.where((n) {
           if (_selectedGroup == 'MY') return favorites.contains(n.id);
           
+          if (_selectedGroup == 'FAV_BOARD') {
+            if (favBoards.isEmpty) return false;
+            if (!favBoards.contains(n.category)) return false;
+            if (_selectedBoard != 'ALL' && _selectedBoard != '전체') return n.category == _selectedBoard;
+            return true;
+          }
+
           if (_selectedGroup == 'DEPT') {
             final targetDepts = KnueScraper.collegeStructure[_selectedCollege] ?? [];
             if (!targetDepts.contains(n.category)) return false;
@@ -353,7 +435,6 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             return true;
           } else {
             if (n.group != _selectedGroup) return false;
-            // [수정] 정확한 키워드 매칭 (예: '학사공지' == '학사공지')
             if (_selectedBoard != 'ALL') return n.category == _selectedBoard;
             return true;
           }
@@ -361,7 +442,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
         if (filtered.isEmpty) {
           String msg = '게시글이 없습니다.';
-          if (_selectedGroup == 'DEPT') msg = '$_selectedCollege\n$_selectedDept\n게시글이 없습니다.';
+          if (_selectedGroup == 'FAV_BOARD' && favBoards.isEmpty) msg = '즐겨찾기한 게시판이 없습니다.\n다른 탭에서 게시판을 길게 눌러 추가해보세요.';
           return Center(child: Padding(padding: const EdgeInsets.all(40), child: Text(msg, textAlign: TextAlign.center)));
         }
 
@@ -375,7 +456,17 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               return AnimationConfiguration.staggeredList(
                 position: i,
                 duration: const Duration(milliseconds: 375),
-                child: SlideAnimation(verticalOffset: 50.0, child: FadeInAnimation(child: NoticeCard(notice: filtered[i], themeData: theme))),
+                child: SlideAnimation(
+                  verticalOffset: 50.0,
+                  child: FadeInAnimation(
+                    child: GestureDetector(
+                      onTap: () {
+                         ref.read(clickHistoryProvider.notifier).logClick(filtered[i].title);
+                      },
+                      child: NoticeCard(notice: filtered[i], themeData: theme),
+                    ),
+                  ),
+                ),
               );
             },
           ),
@@ -388,7 +479,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 }
 
 // =============================================================================
-// [2] AiBanner (별도 위젯으로 분리 및 디자인 수정)
+// [2] AiBanner
 // =============================================================================
 class AiBanner extends ConsumerStatefulWidget {
   const AiBanner({super.key});
@@ -404,10 +495,7 @@ class _AiBannerState extends ConsumerState<AiBanner> {
   void initState() {
     super.initState();
     _bannerTimer = Timer.periodic(const Duration(seconds: 5), (t) {
-      final notices = ref.read(noticesProvider).valueOrNull;
-      if (notices != null && notices.isNotEmpty) {
-        setState(() => _aiBannerIndex = (_aiBannerIndex + 1) % 5);
-      }
+      if (mounted) setState(() => _aiBannerIndex++);
     });
   }
 
@@ -419,72 +507,74 @@ class _AiBannerState extends ConsumerState<AiBanner> {
 
   @override
   Widget build(BuildContext context) {
-    final noticesAsync = ref.watch(noticesProvider);
-    final notices = noticesAsync.valueOrNull ?? [];
-    if (notices.isEmpty) return const SizedBox.shrink();
-    final notice = notices[_aiBannerIndex % notices.length];
+    final aiNoticesAsync = ref.watch(aiRecommendationProvider);
 
-    return GestureDetector(
-      onTap: () async {
-        final uri = Uri.parse(notice.link);
-        if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
-      },
-      child: Container(
-        margin: const EdgeInsets.all(20),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16), // 패딩 조정
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          // [수정] 파란색-보라색 그라데이션 + 글리터 효과(그라데이션으로 표현)
-          gradient: const LinearGradient(
-            colors: [Color(0xFF6A11CB), Color(0xFF2575FC)], // Purple to Blue
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF2575FC).withOpacity(0.4),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // 반짝이는 효과를 주는 아이콘
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
+    return aiNoticesAsync.when(
+      data: (notices) {
+        if (notices.isEmpty) return const SizedBox.shrink();
+        final notice = notices[_aiBannerIndex % notices.length];
+
+        return GestureDetector(
+          onTap: () async {
+            ref.read(clickHistoryProvider.notifier).logClick(notice.title);
+            final uri = Uri.parse(notice.link);
+            if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+          },
+          child: Container(
+            margin: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: const Icon(LucideIcons.sparkles, color: Colors.yellowAccent, size: 20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF2575FC).withOpacity(0.4),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('AI 추천 공지 ✨', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(
-                    '[${notice.category}] ${notice.title}',
-                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
+                  child: const Icon(LucideIcons.sparkles, color: Colors.yellowAccent, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('AI 맞춤 추천 (Gemini) ✨', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text(
+                        '[${notice.category}] ${notice.title}',
+                        style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const Icon(LucideIcons.chevronRight, color: Colors.white54, size: 20),
+              ],
             ),
-            const Icon(LucideIcons.chevronRight, color: Colors.white54, size: 20),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (e, s) => const SizedBox.shrink(),
     );
   }
 }
 
 // =============================================================================
-// [3] SearchTab (분리됨)
+// [3] SearchTab
 // =============================================================================
 class SearchTab extends ConsumerStatefulWidget {
   const SearchTab({super.key});
@@ -554,7 +644,15 @@ class _SearchTabState extends ConsumerState<SearchTab> {
                 itemBuilder: (ctx, i) => AnimationConfiguration.staggeredList(
                   position: i,
                   duration: const Duration(milliseconds: 375),
-                  child: SlideAnimation(verticalOffset: 50.0, child: FadeInAnimation(child: NoticeCard(notice: results[i], themeData: theme))),
+                  child: SlideAnimation(
+                    verticalOffset: 50.0, 
+                    child: FadeInAnimation(
+                      child: GestureDetector(
+                        onTap: () => ref.read(clickHistoryProvider.notifier).logClick(results[i].title),
+                        child: NoticeCard(notice: results[i], themeData: theme)
+                      )
+                    )
+                  ),
                 ),
               ),
             ),
@@ -585,7 +683,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
 }
 
 // =============================================================================
-// [4] SettingsTab (분리됨)
+// [4] SettingsTab
 // =============================================================================
 class SettingsTab extends ConsumerWidget {
   const SettingsTab({super.key});
@@ -603,6 +701,21 @@ class SettingsTab extends ConsumerWidget {
                 children: [
                   const Text('설정', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 30),
+                  
+                  _buildSectionTitle('나의 데이터'),
+                  _buildSettingsCard(context, children: [
+                    _buildInfoTile(
+                      icon: LucideIcons.fileText, 
+                      title: '나의 지원서 관리', 
+                      subtitle: '교내 프로그램 지원 정보 저장', 
+                      color: Colors.green, 
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const ApplicationManagePage()));
+                      }
+                    ),
+                  ]),
+                  const SizedBox(height: 24),
+
                   _buildSectionTitle('앱 테마'),
                   _buildSettingsCard(context, children: [_buildThemeModeSelector(ref, context), _buildDivider(context), _buildColorPalette(ref)]),
                   const SizedBox(height: 24),
@@ -610,7 +723,7 @@ class SettingsTab extends ConsumerWidget {
                   _buildSettingsCard(context, children: [_buildSwitchTile(icon: LucideIcons.bell, title: '키워드 알림', subtitle: '등록한 키워드 포함 시 알림', value: ref.watch(alarmProvider), onChanged: (v) => ref.read(alarmProvider.notifier).state = v, color: Colors.orange)]),
                   const SizedBox(height: 24),
                   _buildSectionTitle('앱 정보'),
-                  _buildSettingsCard(context, children: [_buildInfoTile(icon: LucideIcons.info, title: '버전 정보', trailing: 'v1.2.0', color: Colors.blue, onTap: () {}), _buildDivider(context), _buildInfoTile(icon: LucideIcons.user, title: '개발자 정보', subtitle: '한국교원대학교 예비교사', color: Colors.purple, onTap: () => _showDeveloperInfo(context)), _buildDivider(context), _buildInfoTile(icon: LucideIcons.github, title: '오픈소스 라이선스', color: Colors.grey, onTap: () => showLicensePage(context: context, applicationName: 'KNUE MoA', applicationVersion: '1.2.0'))]),
+                  _buildSettingsCard(context, children: [_buildInfoTile(icon: LucideIcons.info, title: '버전 정보', trailing: 'v1.3.1', color: Colors.blue, onTap: () {}), _buildDivider(context), _buildInfoTile(icon: LucideIcons.user, title: '개발자 정보', subtitle: '한국교원대학교 예비교사', color: Colors.purple, onTap: () => _showDeveloperInfo(context)), _buildDivider(context), _buildInfoTile(icon: LucideIcons.github, title: '오픈소스 라이선스', color: Colors.grey, onTap: () => showLicensePage(context: context, applicationName: 'KNUE MoA', applicationVersion: '1.3.1'))]),
                   const SizedBox(height: 40),
                   Center(child: Text("© 2026 KNUE MoA", style: TextStyle(color: Colors.grey.shade400, fontSize: 12))),
                   const SizedBox(height: 40),
@@ -623,7 +736,6 @@ class SettingsTab extends ConsumerWidget {
     );
   }
 
-  // Helper methods for SettingsTab
   Widget _buildSectionTitle(String title) { return Padding(padding: const EdgeInsets.only(left: 4, bottom: 12), child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey))); }
   Widget _buildSettingsCard(BuildContext context, {required List<Widget> children}) { return Container(decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]), child: Column(children: children)); }
   Widget _buildDivider(BuildContext context) { return Divider(height: 1, thickness: 1, color: Theme.of(context).dividerColor); }
