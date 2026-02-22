@@ -128,21 +128,30 @@ class KnueScraper {
       return box.values.toList()..sort((a, b) => b.date.compareTo(a.date));
     }
 
-    // 새 데이터 가져오기
+    // 새 데이터 가져오기 (병렬 처리로 속도 개선)
     List<Notice> all = [];
+    List<Future<List<Notice>>> futures = [];
+
     for (var groupEntry in boardGroups.entries) {
       String groupName = groupEntry.key;
       for (var entry in groupEntry.value.entries) {
-        try {
-          final notices = await _fetchBoardWithRetry(
-            groupName,
-            entry.key,
-            entry.value,
-          );
-          all.addAll(notices);
-        } catch (e) {
-          print('Error fetching $groupName - ${entry.key}: $e');
-        }
+        futures.add(
+          _fetchBoardWithRetry(groupName, entry.key, entry.value).catchError((
+            e,
+          ) {
+            print('Error fetching $groupName - ${entry.key}: $e');
+            return <Notice>[];
+          }),
+        );
+      }
+    }
+
+    // 5개씩 묶어서 병렬 요청 (서버 부하 방지 및 속도 최적화)
+    for (int i = 0; i < futures.length; i += 5) {
+      int end = (i + 5 < futures.length) ? i + 5 : futures.length;
+      final results = await Future.wait(futures.sublist(i, end));
+      for (var res in results) {
+        all.addAll(res);
       }
     }
 
