@@ -26,6 +26,8 @@ dependencies:
   google_generative_ai: ^0.2.0 # Gemini API
   share_plus: ^7.2.1 # 지원서 공유
   uuid: ^4.3.3 # 고유 ID 생성
+  euc: ^1.0.6+8
+  cp949_codec: ^1.0.2
 
 dev_dependencies:
   flutter_test:
