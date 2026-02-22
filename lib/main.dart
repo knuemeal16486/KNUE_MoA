@@ -7,9 +7,15 @@ import 'package:knue_moa/providers/providers.dart';
 import 'package:knue_moa/screens/home_page.dart';
 import 'package:knue_moa/services/scraper_service.dart';
 import 'package:knue_moa/models/application_model.dart';
+import 'package:knue_moa/services/notification_service.dart';
+import 'package:home_widget/home_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.init();
+
+  // iOS 홈 위젯 연동을 위한 App Group ID 설정
+  await HomeWidget.setAppGroupId('group.com.example.knue_moa');
 
   await Hive.initFlutter();
   Hive.registerAdapter(NoticeAdapter());

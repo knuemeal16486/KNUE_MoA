@@ -8,7 +8,7 @@ part of 'application_model.dart';
 
 class ApplicationFormAdapter extends TypeAdapter<ApplicationForm> {
   @override
-  final int typeId = 1;
+  final int typeId = 2;
 
   @override
   ApplicationForm read(BinaryReader reader) {
@@ -24,16 +24,22 @@ class ApplicationFormAdapter extends TypeAdapter<ApplicationForm> {
       contact: fields[4] as String,
       major: fields[5] as String,
       studentId: fields[6] as String,
-      grade: fields[7] as String,
+      gpa: fields[7] as String,
       selfIntroduction: fields[8] as String,
       etc: fields[9] as String,
+      completedSemesters: fields[10] as String,
+      doubleMajor: fields[11] as String,
+      birthDate: fields[12] as String,
+      age: fields[13] as String,
+      certifications: fields[14] as String,
+      volunteerHours: fields[15] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, ApplicationForm obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -49,11 +55,23 @@ class ApplicationFormAdapter extends TypeAdapter<ApplicationForm> {
       ..writeByte(6)
       ..write(obj.studentId)
       ..writeByte(7)
-      ..write(obj.grade)
+      ..write(obj.gpa)
       ..writeByte(8)
       ..write(obj.selfIntroduction)
       ..writeByte(9)
-      ..write(obj.etc);
+      ..write(obj.etc)
+      ..writeByte(10)
+      ..write(obj.completedSemesters)
+      ..writeByte(11)
+      ..write(obj.doubleMajor)
+      ..writeByte(12)
+      ..write(obj.birthDate)
+      ..writeByte(13)
+      ..write(obj.age)
+      ..writeByte(14)
+      ..write(obj.certifications)
+      ..writeByte(15)
+      ..write(obj.volunteerHours);
   }
 
   @override

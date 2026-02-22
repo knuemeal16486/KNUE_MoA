@@ -20,7 +20,7 @@ class NoticeCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final keywords = ref.watch(keywordsProvider).value ?? [];
-    
+
     final cleanTitle = notice.title
         .replaceAll('새글', '')
         .replaceAll('[새글]', '')
@@ -30,14 +30,13 @@ class NoticeCard extends ConsumerWidget {
     final isMatched = keywords.any((k) => cleanTitle.contains(k));
     final favorites = ref.watch(favoritesNotifierProvider);
     final isFav = favorites.contains(notice.id);
-    
+
     final readList = ref.watch(readNoticesProvider);
     final isRead = readList.contains(notice.id);
-    
+
     // [Red Dot] 새 글이고, 아직 읽지 않았을 때 표시
     final showRedDot = notice.isNew && !isRead;
 
-    final primaryColor = Theme.of(context).primaryColor;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
@@ -54,7 +53,7 @@ class NoticeCard extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -74,9 +73,14 @@ class NoticeCard extends ConsumerWidget {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
-                              color: _getCategoryColor(notice.category).withOpacity(0.1),
+                              color: _getCategoryColor(
+                                notice.category,
+                              ).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -92,18 +96,35 @@ class NoticeCard extends ConsumerWidget {
                           // [노란색 딱지] 나의 키워드
                           if (isMatched)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFFF9C4), 
+                                color: const Color(0xFFFFF9C4),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xFFFBC02D), width: 1),
+                                border: Border.all(
+                                  color: const Color(0xFFFBC02D),
+                                  width: 1,
+                                ),
                               ),
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.star, size: 10, color: Color(0xFFF57F17)),
+                                  Icon(
+                                    Icons.star,
+                                    size: 10,
+                                    color: Color(0xFFF57F17),
+                                  ),
                                   SizedBox(width: 4),
-                                  Text("나의 키워드", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFF57F17))),
+                                  Text(
+                                    "나의 키워드",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFFF57F17),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -126,8 +147,14 @@ class NoticeCard extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 15,
                           // 읽지 않은 글은 굵게, 읽은 글은 회색으로
-                          fontWeight: !isRead ? FontWeight.w600 : FontWeight.normal,
-                          color: isRead ? Colors.grey : (isDark ? Colors.white : const Color(0xFF1E293B)),
+                          fontWeight: !isRead
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                          color: isRead
+                              ? Colors.grey
+                              : (isDark
+                                    ? Colors.white
+                                    : const Color(0xFF1E293B)),
                           height: 1.3,
                         ),
                       ),
@@ -137,18 +164,38 @@ class NoticeCard extends ConsumerWidget {
                         children: [
                           Row(
                             children: [
-                              Text(notice.date, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                              Text(
+                                notice.date,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
                               const SizedBox(width: 8),
-                              Container(width: 1, height: 10, color: Colors.grey.shade300),
+                              Container(
+                                width: 1,
+                                height: 10,
+                                color: Colors.grey.shade300,
+                              ),
                               const SizedBox(width: 8),
-                              Text(notice.author, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                              Text(
+                                notice.author,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
                             ],
                           ),
                           GestureDetector(
-                            onTap: () => ref.read(favoritesNotifierProvider.notifier).toggle(notice.id),
+                            onTap: () => ref
+                                .read(favoritesNotifierProvider.notifier)
+                                .toggle(notice.id),
                             child: Icon(
                               isFav ? LucideIcons.star : LucideIcons.star,
-                              color: isFav ? Colors.amber : Colors.grey.shade300,
+                              color: isFav
+                                  ? Colors.amber
+                                  : Colors.grey.shade300,
                               size: 20,
                             ),
                           ),

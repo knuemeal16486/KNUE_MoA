@@ -6,6 +6,18 @@ import 'package:knue_moa/models/notice_model.dart';
 import 'package:hive/hive.dart';
 import 'package:cp949_codec/cp949_codec.dart';
 
+class CalendarEvent {
+  final DateTime startDate;
+  final DateTime endDate;
+  final String title;
+
+  CalendarEvent({
+    required this.startDate,
+    required this.endDate,
+    required this.title,
+  });
+}
+
 class KnueScraper {
   // 모든 게시판 그룹 (기존과 동일)
   final Map<String, Map<String, String>> boardGroups = {
@@ -20,17 +32,16 @@ class KnueScraper {
       '장학금':
           'https://www.knue.ac.kr/www/selectBbsNttList.do?bbsNo=207&key=1443',
       '교환학생': 'https://www.knue.ac.kr/www/selectBbsNttList.do?bbsNo=13&key=597',
-      '임용안내':
-          'https://www.knue.ac.kr/www/selectBbsNttList.do?bbsNo=259&key=1630',
-      '취업정보': 'https://www.knue.ac.kr/www/selectBbsNttList.do?bbsNo=12&key=574',
       '행사세미나':
           'https://www.knue.ac.kr/www/selectBbsNttList.do?bbsNo=28&key=809',
       '채용공고': 'https://www.knue.ac.kr/www/selectBbsNttList.do?bbsNo=27&key=808',
       '입찰공고': 'https://www.knue.ac.kr/www/selectBbsNttList.do?bbsNo=29&key=810',
     },
     'ANNEX': {
-      '도서관일반': 'https://lib.knue.ac.kr/bbs/list/1',
-      '도서관학술': 'https://lib.knue.ac.kr/bbs/list/2',
+      '도서관일반':
+          'https://lib.knue.ac.kr/pyxis-api/1/bulletin-boards/1/bulletins?max=20&offset=0',
+      '도서관학술':
+          'https://lib.knue.ac.kr/pyxis-api/1/bulletin-boards/2/bulletins?max=20&offset=0',
       // 종합교육연수원 (공통 게시판 패턴)
       '종합연수원':
           'https://tot.knue.ac.kr/common/bbs/management/selectCmmnBBSMgmtList.do?menuId=3000001755&bbsId=BBSMSTR_003000000094',
@@ -43,31 +54,62 @@ class KnueScraper {
       // 사도교육원
       '사도교육원': 'http://rec.knue.ac.kr/bbs/lstBoard.jsp?bodcode=edunotice',
     },
+    'LIFE': {
+      '학생지원':
+          'https://www.knue.ac.kr/www/selectBbsNttList.do?bbsNo=258&key=1625',
+      '임용안내':
+          'https://www.knue.ac.kr/www/selectBbsNttList.do?bbsNo=259&key=1630',
+      '취업정보': 'https://www.knue.ac.kr/www/selectBbsNttList.do?bbsNo=12&key=574',
+    },
     'DEPT': {
       // 제1대학
       '교육학과':
           'https://www.knue.ac.kr/education/selectBbsNttList.do?bbsNo=86&key=985',
       '유아교육과':
           'https://www.knue.ac.kr/ece/selectBbsNttList.do?bbsNo=93&key=1005',
-      '초등교육과':
-          'https://m.cafe.daum.net/knue-primary/HhZk', // 다음카페 모바일 주소 (공지사항 게시판 ID 확인 필요, 예시는 임의)
+      '초등교육과': 'LINK:https://m.cafe.daum.net/knue-primary/_rec',
       '특수교육과':
           'https://www.knue.ac.kr/sped/selectBbsNttList.do?bbsNo=100&key=1025',
 
-      // 제2대학 (확인된 일부만 적용, 나머지는 아래 패턴 참고하여 직접 수정 필요)
-      // 패턴: https://www.knue.ac.kr/[학과영문명]/selectBbsNttList.do?bbsNo=[번호]&key=[번호]
+      // 제2대학
       '국어교육과':
           'https://www.knue.ac.kr/korean/selectBbsNttList.do?bbsNo=106&key=1044',
       '영어교육과':
           'https://www.knue.ac.kr/english/selectBbsNttList.do?bbsNo=113&key=1114',
+      '독어교육과':
+          'https://www.knue.ac.kr/german/selectBbsNttList.do?bbsNo=223&key=1065',
+      '불어교육과':
+          'https://www.knue.ac.kr/french/selectBbsNttList.do?bbsNo=119&key=1079',
+      '중국어교육과':
+          'https://www.knue.ac.kr/chinese/selectBbsNttList.do?bbsNo=226&key=1143',
+      '윤리교육과':
+          'https://www.knue.ac.kr/ethics/selectBbsNttList.do?bbsNo=189&key=1343',
+      '일반사회교육과':
+          'https://www.knue.ac.kr/social/selectBbsNttList.do?bbsNo=133&key=1132',
+      '지리교육과':
+          'https://www.knue.ac.kr/geography/selectBbsNttList.do?bbsNo=229&key=1158',
+      '역사교육과':
+          'https://www.knue.ac.kr/history/selectBbsNttList.do?bbsNo=141&key=1092',
 
       // 제3대학
       '수학교육과':
           'https://www.knue.ac.kr/math/selectBbsNttList.do?bbsNo=151&key=1231',
       '물리교육과':
-          'https://www.knue.ac.kr/phys/selectBbsNttList.do?bbsNo=158&key=1251',
+          'https://www.knue.ac.kr/phys/selectBbsNttList.do?bbsNo=194&key=1202',
+      '화학교육과':
+          'https://www.knue.ac.kr/chemedu/selectBbsNttList.do?bbsNo=235&key=1273',
+      '생물교육과':
+          'https://www.knue.ac.kr/bioedu/selectBbsNttList.do?bbsNo=161&key=1216',
+      '지구과학교육과':
+          'https://www.knue.ac.kr/earth/selectBbsNttList.do?bbsNo=166&key=1247',
+      '가정교육과':
+          'https://www.knue.ac.kr/homeedu/selectBbsNttList.do?bbsNo=199&key=1176',
+      '환경교육과':
+          'https://www.knue.ac.kr/envi/selectBbsNttList.do?bbsNo=178&key=1285',
+      '기술교육과':
+          'https://www.knue.ac.kr/techedu/selectBbsNttList.do?bbsNo=169&key=1189',
       '컴퓨터교육과':
-          'https://www.knue.ac.kr/comedu/selectBbsNttList.do?bbsNo=187&key=1281',
+          'https://www.knue.ac.kr/comedu/selectBbsNttList.do?bbsNo=242&key=1258',
 
       // 제4대학
       '음악교육과':
@@ -75,7 +117,7 @@ class KnueScraper {
       '체육교육과':
           'https://www.knue.ac.kr/phy/selectBbsNttList.do?bbsNo=211&key=1327',
       '미술교육과':
-          'https://www.knue.ac.kr/artedu/selectBbsNttList.do?bbsNo=218&key=1342',
+          'https://www.knue.ac.kr/artedu/selectBbsNttList.do?bbsNo=181&key=1300',
     },
     'GRAD': {
       '대학원': 'https://www.knue.ac.kr/grad/selectBbsNttList.do?bbsNo=67&key=645',
@@ -123,10 +165,21 @@ class KnueScraper {
     // Hive 박스 열기
     final box = await Hive.openBox<Notice>(noticeBoxName);
 
-    // 캐시된 데이터가 있고 강제 새로고침이 아니면 캐시 반환
+    // 캐시를 먼저 반환하되, 백그라운드에서 백그라운드로 최신 데이터를 가져오도록 합니다.
     if (!forceRefresh && box.isNotEmpty) {
-      return box.values.toList()..sort((a, b) => b.date.compareTo(a.date));
+      // 캐시된 데이터 즉시 반환
+      final cachedList = box.values.toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+      // 백그라운드에서 최신 데이터 가져와서 캐시 업데이트
+      _fetchAndUpdateCache();
+      return cachedList;
     }
+
+    return await _fetchAndUpdateCache();
+  }
+
+  Future<List<Notice>> _fetchAndUpdateCache() async {
+    final box = await Hive.openBox<Notice>(noticeBoxName);
 
     // 새 데이터 가져오기 (병렬 처리로 속도 개선)
     List<Notice> all = [];
@@ -187,6 +240,8 @@ class KnueScraper {
     String category,
     String url,
   ) async {
+    if (url.startsWith('LINK:')) return [];
+
     final response = await http
         .get(
           Uri.parse(url),
@@ -201,6 +256,48 @@ class KnueScraper {
       throw Exception('HTTP ${response.statusCode}');
     }
 
+    final notices = <Notice>[];
+
+    // 도서관 게시판 (JSON API 처리)
+    if (url.contains('pyxis-api')) {
+      try {
+        final decoded = jsonDecode(response.body);
+        final list = decoded['data']['list'] as List;
+        for (var item in list) {
+          String title = item['title'] ?? '제목없음';
+          String date = (item['dateCreated'] ?? '')
+              .split(' ')[0]
+              .replaceAll('-', '.');
+          String author = item['writer'] ?? '학교';
+          // 공지사항 1번, 학술 2번
+
+          String fullLink =
+              'https://lib.knue.ac.kr/#/bbs/notice/${item['id']}?offset=0&max=20';
+
+          int id = _generateId(group, category, title, date, fullLink);
+          bool isNew = date.contains(
+            DateFormat('yyyy.MM.dd').format(DateTime.now()),
+          );
+
+          notices.add(
+            Notice(
+              id: id,
+              category: category,
+              group: group,
+              title: title,
+              date: date,
+              author: author,
+              link: fullLink,
+              isNew: isNew,
+            ),
+          );
+        }
+      } catch (e) {
+        print('Parsing JSON error in $category: $e');
+      }
+      return notices;
+    }
+
     String decodedHtml;
     try {
       decodedHtml = utf8.decode(response.bodyBytes);
@@ -211,7 +308,6 @@ class KnueScraper {
     var doc = parser.parse(decodedHtml);
     var rows = doc.querySelectorAll('tbody tr');
 
-    final notices = <Notice>[];
     for (var row in rows) {
       try {
         // 제목과 링크 추출
@@ -304,5 +400,70 @@ class KnueScraper {
     String link,
   ) {
     return Object.hash(group, category, title, date, link);
+  }
+
+  // 달력 행사 스크래핑
+  Future<List<CalendarEvent>> fetchCalendarEvents(int year, int month) async {
+    final baseUrl = 'https://www.knue.ac.kr/www/selectSchdleWebList.do';
+    final monthStr = month.toString().padLeft(2, '0');
+    final url = Uri.parse('$baseUrl?key=542&searchY=$year&searchM=$monthStr');
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode != 200) return [];
+
+      final document = parser.parse(response.body);
+      final listBody = document.querySelectorAll('tbody');
+      if (listBody.isEmpty) return [];
+
+      final scheduleTrs = document.querySelectorAll('tbody tr').where((tr) {
+        return tr.querySelector('.more_link') != null;
+      });
+
+      final List<CalendarEvent> events = [];
+      for (var tr in scheduleTrs) {
+        final titleElem = tr.querySelector('.more_link');
+        if (titleElem == null) continue;
+        final title = titleElem.text.trim();
+
+        final startSpan = tr.querySelector('.start');
+        final endSpan = tr.querySelector('.end');
+
+        DateTime? startDate;
+        DateTime? endDate;
+
+        if (startSpan != null) {
+          final mStr = startSpan.querySelector('.month')?.text.trim() ?? '01';
+          final dStr = startSpan.querySelector('.days')?.text.trim() ?? '01';
+          startDate = DateTime(
+            year,
+            int.tryParse(mStr) ?? 1,
+            int.tryParse(dStr) ?? 1,
+          );
+        }
+
+        if (endSpan != null) {
+          final mStr = endSpan.querySelector('.month')?.text.trim() ?? '01';
+          final dStr = endSpan.querySelector('.days')?.text.trim() ?? '01';
+          endDate = DateTime(
+            year,
+            int.tryParse(mStr) ?? 1,
+            int.tryParse(dStr) ?? 1,
+          );
+        } else {
+          endDate = startDate;
+        }
+
+        if (startDate != null && endDate != null && title.isNotEmpty) {
+          events.add(
+            CalendarEvent(startDate: startDate, endDate: endDate, title: title),
+          );
+        }
+      }
+      return events;
+    } catch (e) {
+      print('Calendar Fetch Error: $e');
+      return [];
+    }
   }
 }

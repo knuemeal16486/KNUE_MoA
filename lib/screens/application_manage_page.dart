@@ -19,7 +19,10 @@ class ApplicationManagePage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('나의 지원서 관리', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          '나의 지원서 관리',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         elevation: 0,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         foregroundColor: Theme.of(context).textTheme.bodyLarge!.color,
@@ -29,11 +32,25 @@ class ApplicationManagePage extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(LucideIcons.fileText, size: 80, color: Colors.grey.shade300),
+                  Icon(
+                    LucideIcons.fileText,
+                    size: 80,
+                    color: Colors.grey.shade300,
+                  ),
                   const SizedBox(height: 20),
-                  Text('저장된 지원서가 없습니다.', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade600)),
+                  Text(
+                    '저장된 지원서가 없습니다.',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  const Text('하단의 버튼을 눌러 새로운 지원서를 작성해보세요.', style: TextStyle(color: Colors.grey)),
+                  const Text(
+                    '하단의 버튼을 눌러 새로운 지원서를 작성해보세요.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ],
               ),
             )
@@ -47,39 +64,91 @@ class ApplicationManagePage extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: ExpansionTile(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    tilePadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    title: Text(app.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    subtitle: Text('${app.name} | ${app.major} | ${app.studentId}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                    title: Text(
+                      app.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${app.name} | ${app.major} | ${app.studentId}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
                     leading: Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: primary.withOpacity(0.1), shape: BoxShape.circle),
-                      child: Icon(LucideIcons.fileText, color: primary, size: 22),
+                      decoration: BoxDecoration(
+                        color: primary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        LucideIcons.fileText,
+                        color: primary,
+                        size: 22,
+                      ),
                     ),
                     children: [
                       const Divider(),
                       const SizedBox(height: 12),
                       _buildSectionHeader(Icons.person, '기본 정보'),
-                      _buildInfoRow('이름', app.name),
+                      _buildInfoRow('이름/성별', '${app.name} (${app.gender})'),
+                      _buildInfoRow(
+                        '생년/나이',
+                        '${app.birthDate} ${app.age.isNotEmpty ? "(${app.age}세)" : ""}',
+                      ),
                       _buildInfoRow('연락처', app.contact),
-                      _buildInfoRow('성별', app.gender),
                       const SizedBox(height: 16),
                       _buildSectionHeader(Icons.school, '학적 정보'),
-                      _buildInfoRow('학과', app.major),
-                      _buildInfoRow('학번', app.studentId),
-                      _buildInfoRow('학점', app.grade),
+                      _buildInfoRow(
+                        '주전공/복수/학번',
+                        '${app.major}${app.doubleMajor.isNotEmpty ? " / ${app.doubleMajor}" : ""} (${app.studentId})',
+                      ),
+                      _buildInfoRow(
+                        '학점(평균/이수)',
+                        '${app.gpa} / 4.5 ${app.completedSemesters.isNotEmpty ? "(${app.completedSemesters}학기)" : ""}',
+                      ),
+                      const SizedBox(height: 16),
+                      if (app.certifications.isNotEmpty ||
+                          app.volunteerHours.isNotEmpty) ...[
+                        _buildSectionHeader(Icons.military_tech, '스펙 정보'),
+                        _buildInfoRow('자격증', app.certifications),
+                        _buildInfoRow('봉사시간', '${app.volunteerHours}시간'),
+                        const SizedBox(height: 16),
+                      ],
                       const SizedBox(height: 16),
                       if (app.selfIntroduction.isNotEmpty) ...[
                         _buildSectionHeader(Icons.description, '자기소개서'),
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor, borderRadius: BorderRadius.circular(12)),
-                          child: Text(app.selfIntroduction, style: const TextStyle(fontSize: 13, height: 1.5)),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            app.selfIntroduction,
+                            style: const TextStyle(fontSize: 13, height: 1.5),
+                          ),
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -88,23 +157,53 @@ class ApplicationManagePage extends ConsumerWidget {
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor, borderRadius: BorderRadius.circular(12)),
-                          child: Text(app.etc, style: const TextStyle(fontSize: 13, height: 1.5)),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            app.etc,
+                            style: const TextStyle(fontSize: 13, height: 1.5),
+                          ),
                         ),
                         const SizedBox(height: 20),
                       ],
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          _buildActionButton(context, LucideIcons.share2, '공유', Colors.blue, () => Share.share(app.toShareText())),
+                          _buildActionButton(
+                            context,
+                            LucideIcons.share2,
+                            '공유',
+                            Colors.blue,
+                            () => Share.share(app.toShareText()),
+                          ),
                           const SizedBox(width: 8),
-                          _buildActionButton(context, LucideIcons.edit, '수정', Colors.orange, () {
-                             Navigator.push(context, MaterialPageRoute(builder: (context) => ApplicationEditorPage(existingApp: app)));
-                          }),
+                          _buildActionButton(
+                            context,
+                            LucideIcons.edit,
+                            '수정',
+                            Colors.orange,
+                            () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      ApplicationEditorPage(existingApp: app),
+                                ),
+                              );
+                            },
+                          ),
                           const SizedBox(width: 8),
-                          _buildActionButton(context, LucideIcons.trash2, '삭제', Colors.red, () => _confirmDelete(context, ref, app.id)),
+                          _buildActionButton(
+                            context,
+                            LucideIcons.trash2,
+                            '삭제',
+                            Colors.red,
+                            () => _confirmDelete(context, ref, app.id),
+                          ),
                         ],
-                      )
+                      ),
                     ],
                   ),
                 );
@@ -112,7 +211,12 @@ class ApplicationManagePage extends ConsumerWidget {
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const ApplicationEditorPage()));
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ApplicationEditorPage(),
+            ),
+          );
         },
         label: const Text('새 지원서 작성'),
         icon: const Icon(LucideIcons.plus),
@@ -124,7 +228,19 @@ class ApplicationManagePage extends ConsumerWidget {
   Widget _buildSectionHeader(IconData icon, String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Row(children: [Icon(icon, size: 16, color: Colors.grey), const SizedBox(width: 8), Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))]),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -135,14 +251,30 @@ class ApplicationManagePage extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 60, child: Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey.shade600, fontSize: 13))),
+          SizedBox(
+            width: 60,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+                fontSize: 13,
+              ),
+            ),
+          ),
           Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );
   }
 
-  Widget _buildActionButton(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _buildActionButton(
+    BuildContext context,
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return Material(
       color: color.withOpacity(0.1),
       borderRadius: BorderRadius.circular(12),
@@ -152,7 +284,18 @@ class ApplicationManagePage extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
-            children: [Icon(icon, size: 14, color: color), const SizedBox(width: 4), Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12))],
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -166,7 +309,10 @@ class ApplicationManagePage extends ConsumerWidget {
         title: const Text('삭제 확인'),
         content: const Text('정말로 이 지원서를 삭제하시겠습니까?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소', style: TextStyle(color: Colors.grey))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소', style: TextStyle(color: Colors.grey)),
+          ),
           ElevatedButton(
             onPressed: () {
               ref.read(applicationProvider.notifier).delete(id);
@@ -189,7 +335,8 @@ class ApplicationEditorPage extends ConsumerStatefulWidget {
   const ApplicationEditorPage({super.key, this.existingApp});
 
   @override
-  ConsumerState<ApplicationEditorPage> createState() => _ApplicationEditorPageState();
+  ConsumerState<ApplicationEditorPage> createState() =>
+      _ApplicationEditorPageState();
 }
 
 class _ApplicationEditorPageState extends ConsumerState<ApplicationEditorPage> {
@@ -200,9 +347,16 @@ class _ApplicationEditorPageState extends ConsumerState<ApplicationEditorPage> {
   late TextEditingController _contactCtrl;
   late TextEditingController _majorCtrl;
   late TextEditingController _idCtrl;
-  late TextEditingController _gradeCtrl;
+  late TextEditingController _gpaCtrl;
   late TextEditingController _selfIntroCtrl;
   late TextEditingController _etcCtrl;
+
+  late TextEditingController _completedSemestersCtrl;
+  late TextEditingController _doubleMajorCtrl;
+  late TextEditingController _birthDateCtrl;
+  late TextEditingController _ageCtrl;
+  late TextEditingController _certificationsCtrl;
+  late TextEditingController _volunteerHoursCtrl;
   bool _isSaving = false;
 
   @override
@@ -214,16 +368,45 @@ class _ApplicationEditorPageState extends ConsumerState<ApplicationEditorPage> {
     _contactCtrl = TextEditingController(text: widget.existingApp?.contact);
     _majorCtrl = TextEditingController(text: widget.existingApp?.major);
     _idCtrl = TextEditingController(text: widget.existingApp?.studentId);
-    _gradeCtrl = TextEditingController(text: widget.existingApp?.grade);
-    _selfIntroCtrl = TextEditingController(text: widget.existingApp?.selfIntroduction);
+    _gpaCtrl = TextEditingController(text: widget.existingApp?.gpa);
+    _selfIntroCtrl = TextEditingController(
+      text: widget.existingApp?.selfIntroduction,
+    );
     _etcCtrl = TextEditingController(text: widget.existingApp?.etc);
+
+    _completedSemestersCtrl = TextEditingController(
+      text: widget.existingApp?.completedSemesters,
+    );
+    _doubleMajorCtrl = TextEditingController(
+      text: widget.existingApp?.doubleMajor,
+    );
+    _birthDateCtrl = TextEditingController(text: widget.existingApp?.birthDate);
+    _ageCtrl = TextEditingController(text: widget.existingApp?.age);
+    _certificationsCtrl = TextEditingController(
+      text: widget.existingApp?.certifications,
+    );
+    _volunteerHoursCtrl = TextEditingController(
+      text: widget.existingApp?.volunteerHours,
+    );
   }
 
   @override
   void dispose() {
-    _titleCtrl.dispose(); _nameCtrl.dispose(); _genderCtrl.dispose();
-    _contactCtrl.dispose(); _majorCtrl.dispose(); _idCtrl.dispose();
-    _gradeCtrl.dispose(); _selfIntroCtrl.dispose(); _etcCtrl.dispose();
+    _titleCtrl.dispose();
+    _nameCtrl.dispose();
+    _genderCtrl.dispose();
+    _contactCtrl.dispose();
+    _majorCtrl.dispose();
+    _idCtrl.dispose();
+    _gpaCtrl.dispose();
+    _selfIntroCtrl.dispose();
+    _etcCtrl.dispose();
+    _completedSemestersCtrl.dispose();
+    _doubleMajorCtrl.dispose();
+    _birthDateCtrl.dispose();
+    _ageCtrl.dispose();
+    _certificationsCtrl.dispose();
+    _volunteerHoursCtrl.dispose();
     super.dispose();
   }
 
@@ -240,21 +423,31 @@ class _ApplicationEditorPageState extends ConsumerState<ApplicationEditorPage> {
         contact: _contactCtrl.text,
         major: _majorCtrl.text,
         studentId: _idCtrl.text,
-        grade: _gradeCtrl.text,
+        gpa: _gpaCtrl.text,
         selfIntroduction: _selfIntroCtrl.text,
         etc: _etcCtrl.text,
+        completedSemesters: _completedSemestersCtrl.text,
+        doubleMajor: _doubleMajorCtrl.text,
+        birthDate: _birthDateCtrl.text,
+        age: _ageCtrl.text,
+        certifications: _certificationsCtrl.text,
+        volunteerHours: _volunteerHoursCtrl.text,
       );
-      
+
       // 비동기 저장 (await 필수)
       await ref.read(applicationProvider.notifier).save(newApp);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('지원서가 저장되었습니다.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('지원서가 저장되었습니다.')));
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')));
         setState(() => _isSaving = false);
       }
     }
@@ -271,9 +464,18 @@ class _ApplicationEditorPageState extends ConsumerState<ApplicationEditorPage> {
         actions: [
           TextButton.icon(
             onPressed: _isSaving ? null : _saveApplication,
-            icon: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.check),
-            label: Text(_isSaving ? '저장 중...' : '저장', style: const TextStyle(fontWeight: FontWeight.bold)),
-          )
+            icon: _isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.check),
+            label: Text(
+              _isSaving ? '저장 중...' : '저장',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
         ],
       ),
       body: Form(
@@ -282,23 +484,114 @@ class _ApplicationEditorPageState extends ConsumerState<ApplicationEditorPage> {
           padding: const EdgeInsets.all(20),
           children: [
             _buildHeader('기본 정보', Icons.person, primary),
-            _buildTextField(_titleCtrl, '지원서 별칭 (필수)', hint: '예: 교환학생용, 장학금용', validator: (v) => v == null || v.isEmpty ? '별칭을 입력해주세요.' : null),
+            _buildTextField(
+              _titleCtrl,
+              '지원서 별칭 (필수)',
+              hint: '예: 교환학생용, 장학금용',
+              validator: (v) => v == null || v.isEmpty ? '별칭을 입력해주세요.' : null,
+            ),
             const SizedBox(height: 12),
-            Row(children: [Expanded(child: _buildTextField(_nameCtrl, '이름')), const SizedBox(width: 12), Expanded(child: _buildTextField(_genderCtrl, '성별'))]),
+            Row(
+              children: [
+                Expanded(child: _buildTextField(_nameCtrl, '이름')),
+                const SizedBox(width: 12),
+                Expanded(child: _buildTextField(_genderCtrl, '성별')),
+              ],
+            ),
             const SizedBox(height: 12),
-            _buildTextField(_contactCtrl, '연락처', hint: '010-XXXX-XXXX', keyboardType: TextInputType.phone),
-            
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: _buildTextField(
+                    _birthDateCtrl,
+                    '생년월일',
+                    hint: 'YYYY-MM-DD',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildTextField(
+                    _ageCtrl,
+                    '나이',
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              _contactCtrl,
+              '연락처',
+              hint: '010-XXXX-XXXX',
+              keyboardType: TextInputType.phone,
+            ),
+
             const SizedBox(height: 30),
             _buildHeader('학적 정보', Icons.school, primary),
-            Row(children: [Expanded(child: _buildTextField(_majorCtrl, '학과/전공')), const SizedBox(width: 12), Expanded(child: _buildTextField(_idCtrl, '학번', keyboardType: TextInputType.number))]),
+            Row(
+              children: [
+                Expanded(child: _buildTextField(_majorCtrl, '주전공')),
+                const SizedBox(width: 12),
+                Expanded(child: _buildTextField(_doubleMajorCtrl, '복수/부전공')),
+              ],
+            ),
             const SizedBox(height: 12),
-            _buildTextField(_gradeCtrl, '학점/성적', hint: '예: 4.0 / 4.5'),
-            
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTextField(
+                    _idCtrl,
+                    '학번',
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildTextField(
+                    _completedSemestersCtrl,
+                    '이수 학기 수',
+                    hint: '예: 4학기',
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              _gpaCtrl,
+              '학점/성적 (4.5 만점)',
+              hint: '예: 4.0 / 4.5',
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+            ),
+
+            const SizedBox(height: 30),
+            _buildHeader('스펙 & 활동', Icons.military_tech, primary),
+            _buildTextField(
+              _certificationsCtrl,
+              '자격증',
+              maxLines: 2,
+              hint: '예: 컴활 1급, 토익 900',
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              _volunteerHoursCtrl,
+              '봉사시간 (총 시간)',
+              keyboardType: TextInputType.number,
+            ),
+
             const SizedBox(height: 30),
             _buildHeader('상세 내용', Icons.description, primary),
-            _buildTextField(_selfIntroCtrl, '자기소개서', maxLines: 10, hint: '내용을 입력하세요...'),
+            _buildTextField(
+              _selfIntroCtrl,
+              '자기소개서',
+              maxLines: 10,
+              hint: '내용을 입력하세요...',
+            ),
             const SizedBox(height: 12),
-            _buildTextField(_etcCtrl, '기타 사항', maxLines: 3),
+            _buildTextField(_etcCtrl, '기타 참고사항', maxLines: 3),
             const SizedBox(height: 40),
           ],
         ),
@@ -309,11 +602,31 @@ class _ApplicationEditorPageState extends ConsumerState<ApplicationEditorPage> {
   Widget _buildHeader(String title, IconData icon, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Row(children: [Icon(icon, color: color), const SizedBox(width: 8), Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color))]),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, {String? hint, int maxLines = 1, TextInputType? keyboardType, String? Function(String?)? validator}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label, {
+    String? hint,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
@@ -323,8 +636,14 @@ class _ApplicationEditorPageState extends ConsumerState<ApplicationEditorPage> {
         labelText: label,
         hintText: hint,
         alignLabelWithHint: maxLines > 1,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
         filled: true,
         fillColor: Theme.of(context).cardColor,
         contentPadding: const EdgeInsets.all(16),

@@ -7,21 +7,27 @@ import 'package:knue_moa/models/application_model.dart';
 import 'package:knue_moa/services/scraper_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive/hive.dart';
+import 'package:home_widget/home_widget.dart';
 import 'dart:async';
 import 'dart:convert';
 
 // === 테마 색상 관련 ===
-final themeColorProvider = StateNotifierProvider<ThemeColorNotifier, Color>((ref) {
+final themeColorProvider = StateNotifierProvider<ThemeColorNotifier, Color>((
+  ref,
+) {
   return ThemeColorNotifier();
 });
 
 class ThemeColorNotifier extends StateNotifier<Color> {
-  ThemeColorNotifier() : super(AppTheme.palette[0]) { _load(); }
+  ThemeColorNotifier() : super(AppTheme.palette[0]) {
+    _load();
+  }
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final colorValue = prefs.getInt('theme_color');
     if (colorValue != null) state = Color(colorValue);
   }
+
   Future<void> setColor(Color color) async {
     state = color;
     final prefs = await SharedPreferences.getInstance();
@@ -30,17 +36,22 @@ class ThemeColorNotifier extends StateNotifier<Color> {
 }
 
 // === 테마 모드 관련 ===
-final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((
+  ref,
+) {
   return ThemeModeNotifier();
 });
 
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.system) { _load(); }
+  ThemeModeNotifier() : super(ThemeMode.system) {
+    _load();
+  }
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final index = prefs.getInt('theme_mode');
     if (index != null) state = ThemeMode.values[index];
   }
+
   Future<void> setMode(ThemeMode mode) async {
     state = mode;
     final prefs = await SharedPreferences.getInstance();
@@ -49,23 +60,30 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 }
 
 // === 읽은 게시글 관리 ===
-final readNoticesProvider = StateNotifierProvider<ReadNoticesNotifier, List<int>>((ref) {
-  return ReadNoticesNotifier();
-});
+final readNoticesProvider =
+    StateNotifierProvider<ReadNoticesNotifier, List<int>>((ref) {
+      return ReadNoticesNotifier();
+    });
 
 class ReadNoticesNotifier extends StateNotifier<List<int>> {
-  ReadNoticesNotifier() : super([]) { _load(); }
+  ReadNoticesNotifier() : super([]) {
+    _load();
+  }
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final strings = prefs.getStringList('read_notices') ?? [];
     state = strings.map(int.parse).toList();
   }
+
   Future<void> markAsRead(int id) async {
     if (state.contains(id)) return;
     final newList = [...state, id];
     state = newList;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('read_notices', newList.map((e) => e.toString()).toList());
+    await prefs.setStringList(
+      'read_notices',
+      newList.map((e) => e.toString()).toList(),
+    );
   }
 }
 
@@ -75,16 +93,20 @@ final keywordsProvider = FutureProvider<List<String>>((ref) async {
   return prefs.getStringList('keywords') ?? ['장학', '수강', '졸업'];
 });
 
-final keywordsNotifierProvider = StateNotifierProvider<KeywordsNotifier, List<String>>((ref) {
-  return KeywordsNotifier();
-});
+final keywordsNotifierProvider =
+    StateNotifierProvider<KeywordsNotifier, List<String>>((ref) {
+      return KeywordsNotifier();
+    });
 
 class KeywordsNotifier extends StateNotifier<List<String>> {
-  KeywordsNotifier() : super([]) { _load(); }
+  KeywordsNotifier() : super([]) {
+    _load();
+  }
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     state = prefs.getStringList('keywords') ?? ['장학', '수강', '졸업'];
   }
+
   Future<void> add(String keyword) async {
     if (keyword.isEmpty || state.contains(keyword)) return;
     final newList = [...state, keyword];
@@ -92,6 +114,7 @@ class KeywordsNotifier extends StateNotifier<List<String>> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('keywords', newList);
   }
+
   Future<void> remove(String keyword) async {
     final newList = state.where((k) => k != keyword).toList();
     state = newList;
@@ -107,38 +130,51 @@ final favoritesProvider = FutureProvider<List<int>>((ref) async {
   return strings.map(int.parse).toList();
 });
 
-final favoritesNotifierProvider = StateNotifierProvider<FavoritesNotifier, List<int>>((ref) {
-  return FavoritesNotifier();
-});
+final favoritesNotifierProvider =
+    StateNotifierProvider<FavoritesNotifier, List<int>>((ref) {
+      return FavoritesNotifier();
+    });
 
 class FavoritesNotifier extends StateNotifier<List<int>> {
-  FavoritesNotifier() : super([]) { _load(); }
+  FavoritesNotifier() : super([]) {
+    _load();
+  }
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final strings = prefs.getStringList('favorites') ?? [];
     state = strings.map(int.parse).toList();
   }
+
   Future<void> toggle(int id) async {
-    final newList = state.contains(id) ? state.where((i) => i != id).toList() : [...state, id];
+    final newList = state.contains(id)
+        ? state.where((i) => i != id).toList()
+        : [...state, id];
     state = newList;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('favorites', newList.map((e) => e.toString()).toList());
+    await prefs.setStringList(
+      'favorites',
+      newList.map((e) => e.toString()).toList(),
+    );
   }
 }
 
 // === 게시판 즐겨찾기 (게시판 이름 저장) ===
-final boardFavoritesProvider = StateNotifierProvider<BoardFavoritesNotifier, List<String>>((ref) {
-  return BoardFavoritesNotifier();
-});
+final boardFavoritesProvider =
+    StateNotifierProvider<BoardFavoritesNotifier, List<String>>((ref) {
+      return BoardFavoritesNotifier();
+    });
 
 class BoardFavoritesNotifier extends StateNotifier<List<String>> {
-  BoardFavoritesNotifier() : super([]) { _load(); }
+  BoardFavoritesNotifier() : super([]) {
+    _load();
+  }
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     state = prefs.getStringList('fav_boards') ?? [];
   }
+
   Future<void> toggle(String boardName) async {
-    if (boardName == 'ALL' || boardName == '전체') return; 
+    if (boardName == 'ALL' || boardName == '전체') return;
     final newList = state.contains(boardName)
         ? state.where((b) => b != boardName).toList()
         : [...state, boardName];
@@ -148,14 +184,69 @@ class BoardFavoritesNotifier extends StateNotifier<List<String>> {
   }
 }
 
+// === 게시판 하위 탭(게시판) 순서 관리 ===
+final boardOrderProvider =
+    StateNotifierProvider<BoardOrderNotifier, Map<String, List<String>>>((ref) {
+      return BoardOrderNotifier();
+    });
+
+class BoardOrderNotifier extends StateNotifier<Map<String, List<String>>> {
+  BoardOrderNotifier() : super({}) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonStr = prefs.getString('board_orders');
+    if (jsonStr != null) {
+      final decoded = json.decode(jsonStr) as Map<String, dynamic>;
+      state = decoded.map((k, v) => MapEntry(k, List<String>.from(v)));
+    }
+  }
+
+  List<String> getOrder(String groupKey, List<String> defaultBoards) {
+    if (!state.containsKey(groupKey)) return defaultBoards;
+    final savedBoards = state[groupKey]!;
+    final validSaved = savedBoards
+        .where((b) => defaultBoards.contains(b))
+        .toList();
+    final missing = defaultBoards
+        .where((b) => !savedBoards.contains(b))
+        .toList();
+    return [...validSaved, ...missing];
+  }
+
+  Future<void> reorder(
+    String groupKey,
+    int oldIndex,
+    int newIndex,
+    List<String> currentList,
+  ) async {
+    if (oldIndex < newIndex) newIndex -= 1;
+    final newList = List<String>.from(currentList);
+    final item = newList.removeAt(oldIndex);
+    newList.insert(newIndex, item);
+
+    final newState = Map<String, List<String>>.from(state);
+    newState[groupKey] = newList;
+    state = newState;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('board_orders', json.encode(newState));
+  }
+}
+
 // === 게시글 클릭 기록 (AI 추천용) ===
-final clickHistoryProvider = StateNotifierProvider<ClickHistoryNotifier, Map<String, int>>((ref) {
-  return ClickHistoryNotifier();
-});
+final clickHistoryProvider =
+    StateNotifierProvider<ClickHistoryNotifier, Map<String, int>>((ref) {
+      return ClickHistoryNotifier();
+    });
 
 class ClickHistoryNotifier extends StateNotifier<Map<String, int>> {
-  ClickHistoryNotifier() : super({}) { _load(); }
-  
+  ClickHistoryNotifier() : super({}) {
+    _load();
+  }
+
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonStr = prefs.getString('click_history');
@@ -167,11 +258,11 @@ class ClickHistoryNotifier extends StateNotifier<Map<String, int>> {
   Future<void> logClick(String title) async {
     final words = title.split(' ').where((w) => w.length >= 2).take(3);
     final newState = Map<String, int>.from(state);
-    
+
     for (var word in words) {
       newState[word] = (newState[word] ?? 0) + 1;
     }
-    
+
     state = newState;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('click_history', json.encode(newState));
@@ -179,12 +270,15 @@ class ClickHistoryNotifier extends StateNotifier<Map<String, int>> {
 }
 
 // === [수정] 나의 지원서 관리 (프리징 해결 및 안정성 강화) ===
-final applicationProvider = StateNotifierProvider<ApplicationNotifier, List<ApplicationForm>>((ref) {
-  return ApplicationNotifier();
-});
+final applicationProvider =
+    StateNotifierProvider<ApplicationNotifier, List<ApplicationForm>>((ref) {
+      return ApplicationNotifier();
+    });
 
 class ApplicationNotifier extends StateNotifier<List<ApplicationForm>> {
-  ApplicationNotifier() : super([]) { _load(); }
+  ApplicationNotifier() : super([]) {
+    _load();
+  }
 
   static const String boxName = 'applications_v2'; // 박스 이름 변경하여 충돌 방지
 
@@ -254,19 +348,18 @@ final aiRecommendationProvider = FutureProvider<List<Notice>>((ref) async {
   if (recentNotices.isEmpty) return [];
 
   // 2. Gemini 호출
-  const apiKey = 'AIzaSyAaeyQada46oab0XgbHzjajmHM4cDYARnQ'; 
+  const apiKey = 'AIzaSyAaeyQada46oab0XgbHzjajmHM4cDYARnQ';
   final model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: apiKey);
 
   final candidateCount = recentNotices.length > 50 ? 50 : recentNotices.length;
   final candidates = recentNotices.take(candidateCount).toList();
-  
-  final candidatesJson = candidates.map((n) => {
-    'id': n.id,
-    'title': n.title,
-    'category': n.category
-  }).toList();
 
-  final prompt = '''
+  final candidatesJson = candidates
+      .map((n) => {'id': n.id, 'title': n.title, 'category': n.category})
+      .toList();
+
+  final prompt =
+      '''
   당신은 대학생을 위한 공지사항 추천 AI입니다.
   
   [사용자 정보]
@@ -286,14 +379,16 @@ final aiRecommendationProvider = FutureProvider<List<Notice>>((ref) async {
   try {
     final content = [Content.text(prompt)];
     final response = await model.generateContent(content);
-    final text = response.text?.replaceAll('```json', '').replaceAll('```', '').trim() ?? '[]';
-    
+    final text =
+        response.text?.replaceAll('```json', '').replaceAll('```', '').trim() ??
+        '[]';
+
     final List<dynamic> recommendedIds = jsonDecode(text);
-    
+
     final recommendations = candidates
         .where((n) => recommendedIds.contains(n.id))
         .toList();
-        
+
     return recommendations.take(3).toList();
   } catch (e) {
     print('AI Error: $e');
@@ -302,15 +397,133 @@ final aiRecommendationProvider = FutureProvider<List<Notice>>((ref) async {
 });
 
 // === 알람 설정 ===
-final alarmProvider = StateProvider<bool>((ref) => true);
+final alarmProvider = StateNotifierProvider<AlarmNotifier, bool>((ref) {
+  return AlarmNotifier();
+});
+
+class AlarmNotifier extends StateNotifier<bool> {
+  AlarmNotifier() : super(true) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getBool('alarm_on') ?? true;
+  }
+
+  Future<void> setAlarm(bool value) async {
+    state = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('alarm_on', value);
+  }
+}
 
 // === 공지사항 데이터 ===
-final noticesProvider = FutureProvider<List<Notice>>((ref) async {
-  final scraper = KnueScraper();
-  return scraper.fetchAllNotices(forceRefresh: false);
-});
+class NoticesNotifier extends AsyncNotifier<List<Notice>> {
+  @override
+  Future<List<Notice>> build() async {
+    final scraper = KnueScraper();
+    // 초기 로딩 (캐시가 있으면 즉시 반환, 없으면 웹에서 로딩)
+    final notices = await scraper.fetchAllNotices(forceRefresh: false);
 
-final refreshNoticesProvider = FutureProvider<List<Notice>>((ref) async {
+    // 백그라운드 자동 업데이트 (캐시를 반환했더라도 뒤에서 무조건 최신 데이터를 가져옴)
+    _backgroundUpdate();
+
+    return notices;
+  }
+
+  Future<void> _backgroundUpdate() async {
+    try {
+      final scraper = KnueScraper();
+      // forceRefresh: true로 강제로 최신 데이터를 가져옴
+      final latestNotices = await scraper.fetchAllNotices(forceRefresh: true);
+      // 상태를 업데이트하면 Riverpod이 자동으로 UI를 다시 그림
+      state = AsyncData(latestNotices);
+      _updateWidget(latestNotices);
+    } catch (e) {
+      print('Background update failed: $e');
+    }
+  }
+
+  // 사용자가 명시적으로 스와이프해서 새로고침할 때 호출
+  Future<List<Notice>> refresh() async {
+    state = const AsyncLoading(); // 로딩 UI 표시
+    final scraper = KnueScraper();
+    final notices = await scraper.fetchAllNotices(forceRefresh: true);
+    state = AsyncData(notices);
+    _updateWidget(notices);
+    return notices;
+  }
+
+  Future<void> _updateWidget(List<Notice> notices) async {
+    if (notices.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final widgetBoards = prefs.getStringList('widget_boards') ?? [];
+
+    List<Notice> filtered;
+    if (widgetBoards.isEmpty) {
+      filtered = notices.take(5).toList();
+    } else {
+      filtered = notices
+          .where((n) => widgetBoards.contains(n.category))
+          .take(5)
+          .toList();
+      if (filtered.isEmpty) filtered = notices.take(5).toList();
+    }
+
+    final text = filtered.map((n) => '[${n.category}] ${n.title}').join('\n');
+    await HomeWidget.saveWidgetData<String>('notice_text', text);
+    await HomeWidget.updateWidget(
+      name: 'NoticeWidgetProvider',
+      androidName: 'NoticeWidgetProvider',
+    );
+  }
+}
+
+final noticesProvider = AsyncNotifierProvider<NoticesNotifier, List<Notice>>(
+  () {
+    return NoticesNotifier();
+  },
+);
+
+// === 달력 행사 데이터 ===
+final calendarProvider = FutureProvider.family<List<CalendarEvent>, DateTime>((
+  ref,
+  date,
+) async {
   final scraper = KnueScraper();
-  return scraper.fetchAllNotices(forceRefresh: true);
+  return await scraper.fetchCalendarEvents(date.year, date.month);
 });
+// === 홈 위젯 설정 (표시할 게시판 선택) ===
+final widgetBoardsProvider =
+    StateNotifierProvider<WidgetBoardsNotifier, List<String>>((ref) {
+      return WidgetBoardsNotifier();
+    });
+
+class WidgetBoardsNotifier extends StateNotifier<List<String>> {
+  WidgetBoardsNotifier() : super([]) {
+    _load();
+  }
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getStringList('widget_boards') ?? [];
+  }
+
+  Future<void> toggle(String boardName) async {
+    final newList = state.contains(boardName)
+        ? state.where((b) => b != boardName).toList()
+        : [...state, boardName];
+    state = newList;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('widget_boards', newList);
+  }
+}
+
+// === 설정 초기화 ===
+Future<void> resetAllSettings() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.clear();
+  await Hive.deleteBoxFromDisk('applications_v2');
+  await Hive.deleteBoxFromDisk(KnueScraper.noticeBoxName);
+}

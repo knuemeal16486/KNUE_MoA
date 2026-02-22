@@ -7,10 +7,11 @@ import 'package:knue_moa/providers/providers.dart';
 import 'package:knue_moa/services/scraper_service.dart';
 import 'package:knue_moa/widgets/notice_card.dart';
 import 'package:knue_moa/widgets/keyword_chip.dart';
-import 'package:knue_moa/models/notice_model.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:knue_moa/screens/application_manage_page.dart';
+import 'package:knue_moa/screens/developer_info_page.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -73,7 +74,7 @@ class _HomePageState extends ConsumerState<HomePage>
           ),
           IconButton(
             onPressed: () {
-              ref.read(alarmProvider.notifier).state = !isAlarmOn;
+              ref.read(alarmProvider.notifier).setAlarm(!isAlarmOn);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
@@ -177,17 +178,33 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   String _selectedCollege = '제1대학';
   String _selectedDept = 'ALL';
   String _selectedBoard = 'ALL';
+  int _noticeDisplayLimit = 10;
   bool _isInputVisible = false;
   final TextEditingController _keywordController = TextEditingController();
+
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+
+  Color _getEventColor(String title) {
+    if (title.contains('시험') || title.contains('중간') || title.contains('기말')) {
+      return const Color(0xFFF87171); // Red
+    } else if (title.contains('방학') || title.contains('휴업')) {
+      return const Color(0xFF60A5FA); // Blue
+    } else if (title.contains('수강') || title.contains('등록')) {
+      return const Color(0xFF34D399); // Green
+    } else if (title.contains('신청') || title.contains('변경')) {
+      return const Color(0xFFFBBF24); // Amber
+    } else if (title.contains('발표') || title.contains('통보')) {
+      return const Color(0xFFA78BFA); // Violet
+    } else {
+      final h = title.hashCode.abs();
+      return HSLColor.fromAHSL(1.0, (h % 360).toDouble(), 0.7, 0.6).toColor();
+    }
+  }
 
   // [수정] 각 그룹별 아이콘과 고유 색상 정의
   final Map<String, Map<String, dynamic>> _noticeGroups = {
     'MY': {'label': 'MY', 'icon': LucideIcons.star, 'color': Colors.amber},
-    'FAV_BOARD': {
-      'label': '즐겨찾기판',
-      'icon': LucideIcons.bookmark,
-      'color': Colors.redAccent,
-    },
     'MAIN': {
       'label': '본부 공지',
       'icon': LucideIcons.building2,
@@ -202,6 +219,11 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       'label': '학과 홈페이지',
       'icon': LucideIcons.graduationCap,
       'color': Colors.purple,
+    },
+    'LIFE': {
+      'label': '대학생활',
+      'icon': LucideIcons.coffee,
+      'color': Colors.deepOrange,
     },
     'GRAD': {
       'label': '대학원',
@@ -224,9 +246,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(noticesProvider);
         ref.invalidate(aiRecommendationProvider);
-        return ref.read(refreshNoticesProvider.future);
+        await ref.read(noticesProvider.notifier).refresh();
       },
       child: ListView(
         padding: const EdgeInsets.only(bottom: 40),
@@ -235,6 +256,226 @@ class _HomeTabState extends ConsumerState<HomeTab> {
           const AiBanner(),
           _buildFolderSystem(themeData),
           _buildNoticeList(themeData),
+          _buildRecentNoticesHighlight(themeData),
+          _buildCalendar(themeData),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendar(Map<String, dynamic> theme) {
+    final primary = theme['primary'] as Color;
+    // We only fetch based on focused day
+    final asyncEvents = ref.watch(
+      calendarProvider(DateTime(_focusedDay.year, _focusedDay.month)),
+    );
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(LucideIcons.calendar, color: primary, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                '학사일정',
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TableCalendar(
+            firstDay: DateTime.utc(DateTime.now().year - 2, 1, 1),
+            lastDay: DateTime.utc(DateTime.now().year + 2, 12, 31),
+            focusedDay: _focusedDay,
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            calendarFormat: CalendarFormat.month,
+            startingDayOfWeek: StartingDayOfWeek.sunday,
+            calendarBuilders: CalendarBuilders(
+              dowBuilder: (context, day) {
+                final days = ['월', '화', '수', '목', '금', '토', '일'];
+                final text = days[day.weekday - 1];
+                return Center(
+                  child: Text(
+                    text,
+                    style: TextStyle(
+                      color: day.weekday == DateTime.sunday
+                          ? Colors.red
+                          : day.weekday == DateTime.saturday
+                          ? Colors.blue
+                          : Colors.grey,
+                    ),
+                  ),
+                );
+              },
+              headerTitleBuilder: (context, day) {
+                return Center(
+                  child: Text(
+                    '${day.year}.${day.month.toString().padLeft(2, '0')}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                );
+              },
+              markerBuilder: (context, day, events) {
+                if (events.isEmpty) return null;
+                return Positioned(
+                  bottom: 1,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: events.take(4).map((event) {
+                      final e = event as CalendarEvent;
+                      return Container(
+                        width: 5,
+                        height: 5,
+                        margin: const EdgeInsets.symmetric(horizontal: 0.5),
+                        decoration: BoxDecoration(
+                          color: _getEventColor(e.title),
+                          shape: BoxShape.circle,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                );
+              },
+            ),
+            headerStyle: const HeaderStyle(
+              formatButtonVisible: false,
+              titleCentered: true,
+            ),
+            calendarStyle: CalendarStyle(
+              todayDecoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: primary, width: 1.5),
+              ),
+              todayTextStyle: TextStyle(
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+                fontWeight: FontWeight.bold,
+              ),
+              selectedDecoration: BoxDecoration(
+                color: primary,
+                shape: BoxShape.circle,
+              ),
+            ),
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() {
+                _selectedDay = selectedDay;
+                _focusedDay = focusedDay;
+              });
+            },
+            onPageChanged: (focusedDay) {
+              setState(() {
+                _focusedDay = focusedDay;
+              });
+            },
+            eventLoader: (day) {
+              final events = asyncEvents.value ?? [];
+              return events.where((e) {
+                // Return true if `day` is exactly equal to event `startDate` or within range
+                // Time component is removed for comparison in table_calendar, we just check day
+                final qDay = DateTime(day.year, day.month, day.day);
+                final evtStart = DateTime(
+                  e.startDate.year,
+                  e.startDate.month,
+                  e.startDate.day,
+                );
+                final evtEnd = DateTime(
+                  e.endDate.year,
+                  e.endDate.month,
+                  e.endDate.day,
+                );
+
+                return qDay.isAtSameMomentAs(evtStart) ||
+                    (qDay.isAfter(evtStart) &&
+                        (qDay.isBefore(evtEnd) ||
+                            qDay.isAtSameMomentAs(evtEnd)));
+              }).toList();
+            },
+          ),
+          const SizedBox(height: 10),
+          if (_selectedDay != null && asyncEvents.hasValue)
+            ...() {
+              final events = asyncEvents.value ?? [];
+              final thisDayEvents = events.where((e) {
+                final day = _selectedDay!;
+                final qDay = DateTime(day.year, day.month, day.day);
+                final evtStart = DateTime(
+                  e.startDate.year,
+                  e.startDate.month,
+                  e.startDate.day,
+                );
+                final evtEnd = DateTime(
+                  e.endDate.year,
+                  e.endDate.month,
+                  e.endDate.day,
+                );
+                return qDay.isAtSameMomentAs(evtStart) ||
+                    (qDay.isAfter(evtStart) &&
+                        (qDay.isBefore(evtEnd) ||
+                            qDay.isAtSameMomentAs(evtEnd)));
+              }).toList();
+              final uniqueTitles = thisDayEvents
+                  .map((e) => e.title)
+                  .toSet()
+                  .toList();
+
+              if (uniqueTitles.isEmpty) {
+                return [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      '일정이 없습니다.',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                ];
+              }
+
+              return uniqueTitles
+                  .map(
+                    (title) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            LucideIcons.checkCircle2,
+                            size: 16,
+                            color: _getEventColor(title),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList();
+            }(),
         ],
       ),
     );
@@ -357,70 +598,192 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     }
   }
 
+  Widget _buildRecentNoticesHighlight(Map<String, dynamic> theme) {
+    final noticesAsync = ref.watch(noticesProvider);
+    return noticesAsync.when(
+      data: (notices) {
+        if (notices.isEmpty) return const SizedBox.shrink();
+
+        // 상단 최신 5개 추출
+        final recent = notices.take(5).toList();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(LucideIcons.zap, color: theme['primary'], size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    '방금 올라온 소식',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 130, // 적절한 높이
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                itemCount: recent.length,
+                itemBuilder: (context, index) {
+                  final notice = recent[index];
+                  return GestureDetector(
+                    onTap: () async {
+                      ref
+                          .read(clickHistoryProvider.notifier)
+                          .logClick(notice.title);
+                      if (!await launchUrl(Uri.parse(notice.link))) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('링크를 열 수 없습니다.')),
+                        );
+                      }
+                    },
+                    child: Container(
+                      width: 260,
+                      margin: const EdgeInsets.only(right: 12, bottom: 8),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme['primary'].withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  notice.category,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme['primary'],
+                                  ),
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                notice.date,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            notice.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
   Widget _buildFolderSystem(Map<String, dynamic> theme) {
-    final primary = theme['primary'] as Color;
     return Column(
       children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: _noticeGroups.entries.map((entry) {
-              final active = _selectedGroup == entry.key;
-              // [수정] 각 그룹별 고유 색상 사용
-              final groupColor = entry.value['color'] as Color;
-              final effectiveColor = active ? groupColor : Colors.grey.shade400;
+        SizedBox(
+          height: 100,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: _noticeGroups.keys.map((groupKey) {
+                final active = _selectedGroup == groupKey;
+                final groupData = _noticeGroups[groupKey]!;
+                final groupColor = groupData['color'] as Color;
+                final effectiveColor = active
+                    ? groupColor
+                    : Colors.grey.shade400;
 
-              return GestureDetector(
-                onTap: () => setState(() {
-                  _selectedGroup = entry.key;
-                  _selectedBoard = 'ALL';
-                  if (entry.key == 'DEPT') {
-                    _selectedCollege = '제1대학';
-                    _selectedDept = 'ALL';
-                  }
-                }),
-                child: Container(
-                  width: 75,
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        // [수정] 활성화 시 해당 그룹 색상의 배경 및 테두리 적용
-                        decoration: BoxDecoration(
-                          color: active
-                              ? groupColor.withOpacity(0.15)
-                              : Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: active ? groupColor : Colors.grey.shade200,
-                            width: active ? 2 : 1,
+                return GestureDetector(
+                  onTap: () => setState(() {
+                    _selectedGroup = groupKey;
+                    _selectedBoard = 'ALL';
+                    _noticeDisplayLimit = 10;
+                    if (groupKey == 'DEPT') {
+                      _selectedCollege = '제1대학';
+                      _selectedDept = 'ALL';
+                    }
+                  }),
+                  child: Container(
+                    width: 75,
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: active
+                                ? groupColor.withOpacity(0.15)
+                                : Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: active ? groupColor : Colors.grey.shade200,
+                              width: active ? 2 : 1,
+                            ),
+                          ),
+                          child: Icon(
+                            groupData['icon'],
+                            color: effectiveColor,
+                            size: 24,
                           ),
                         ),
-                        child: Icon(
-                          entry.value['icon'],
-                          color: effectiveColor,
-                          size: 24,
+                        const SizedBox(height: 6),
+                        Text(
+                          groupData['label'],
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: active ? groupColor : Colors.grey,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        entry.value['label'],
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: active ? groupColor : Colors.grey,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
-            }).toList(),
+                );
+              }).toList(),
+            ),
           ),
         ),
         _buildBoardSelector(theme),
@@ -431,41 +794,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   Widget _buildBoardSelector(Map<String, dynamic> theme) {
     final primary = theme['primary'] as Color;
     final scraper = KnueScraper();
-    final favBoards = ref.watch(boardFavoritesProvider);
 
-    if (_selectedGroup == 'FAV_BOARD') {
-      if (favBoards.isEmpty) {
-        return const Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text(
-            "게시판 칩을 길게 눌러 즐겨찾기에 추가해보세요!",
-            style: TextStyle(color: Colors.grey, fontSize: 12),
-          ),
-        );
-      }
-      return Container(
-        height: 50,
-        margin: const EdgeInsets.only(bottom: 12),
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          itemCount: favBoards.length,
-          itemBuilder: (ctx, index) {
-            final board = favBoards[index];
-            final selected = _selectedBoard == board;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: _buildBoardChip(
-                board,
-                selected,
-                primary,
-                isRemovable: true,
-              ),
-            );
-          },
-        ),
-      );
-    }
+    if (_selectedGroup == 'MY') return const SizedBox(height: 12);
 
     if (_selectedGroup == 'DEPT') {
       return Column(
@@ -487,6 +817,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     onSelected: (s) => setState(() {
                       _selectedCollege = college;
                       _selectedDept = 'ALL';
+                      _noticeDisplayLimit = 10;
                     }),
                     selectedColor: primary.withOpacity(0.2),
                     backgroundColor: Theme.of(context).cardColor,
@@ -516,7 +847,10 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   child: ChoiceChip(
                     label: const Text('전체'),
                     selected: _selectedDept == 'ALL',
-                    onSelected: (s) => setState(() => _selectedDept = 'ALL'),
+                    onSelected: (s) => setState(() {
+                      _selectedDept = 'ALL';
+                      _noticeDisplayLimit = 10;
+                    }),
                     selectedColor: primary.withOpacity(0.1),
                     backgroundColor: Theme.of(context).cardColor,
                     labelStyle: TextStyle(
@@ -541,41 +875,96 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                       dept,
                       selected,
                       primary,
-                      onSelected: () => setState(() => _selectedDept = dept),
+                      onSelected: () => setState(() {
+                        _selectedDept = dept;
+                        _noticeDisplayLimit = 10;
+                      }),
                     ),
                   );
-                }).toList(),
+                }),
               ],
             ),
           ),
         ],
       );
     } else {
-      List<String> boards = [];
+      List<String> defaultBoards = [];
       if (_selectedGroup == 'MAIN')
-        boards = ['ALL', ...?(scraper.boardGroups['MAIN']?.keys)];
+        defaultBoards = scraper.boardGroups['MAIN']?.keys.toList() ?? [];
+      else if (_selectedGroup == 'LIFE')
+        defaultBoards = scraper.boardGroups['LIFE']?.keys.toList() ?? [];
       else if (_selectedGroup == 'ANNEX')
-        boards = ['ALL', ...?(scraper.boardGroups['ANNEX']?.keys)];
+        defaultBoards = scraper.boardGroups['ANNEX']?.keys.toList() ?? [];
       else if (_selectedGroup == 'GRAD')
-        boards = ['ALL', ...?(scraper.boardGroups['GRAD']?.keys)];
+        defaultBoards = scraper.boardGroups['GRAD']?.keys.toList() ?? [];
 
-      if (boards.isEmpty) return const SizedBox(height: 12);
+      if (defaultBoards.isEmpty) return const SizedBox(height: 12);
+
+      final currentOrder = ref
+          .watch(boardOrderProvider.notifier)
+          .getOrder(_selectedGroup, defaultBoards);
 
       return Container(
         height: 50,
         margin: const EdgeInsets.only(bottom: 12),
-        child: ListView.builder(
+        child: ReorderableListView(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          itemCount: boards.length,
-          itemBuilder: (ctx, index) {
-            final board = boards[index];
-            final selected = _selectedBoard == board;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: _buildBoardChip(board, selected, primary),
+          proxyDecorator: (child, index, animation) {
+            return Material(
+              color: Colors.transparent,
+              child: Transform.scale(
+                scale: 1.05,
+                child: Container(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: primary.withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: child,
+                ),
+              ),
             );
           },
+          onReorder: (oldIndex, newIndex) {
+            if (oldIndex == 0) return; // Cannot reorder 'ALL'
+            if (newIndex == 0) newIndex = 1; // Cannot place before 'ALL'
+            final actualOld = oldIndex - 1;
+            final actualNew = newIndex - 1;
+            ref
+                .read(boardOrderProvider.notifier)
+                .reorder(_selectedGroup, actualOld, actualNew, currentOrder);
+            setState(() {});
+          },
+          children: [
+            Padding(
+              key: const ValueKey('ALL'),
+              padding: const EdgeInsets.only(right: 8),
+              child: _buildBoardChip('ALL', _selectedBoard == 'ALL', primary),
+            ),
+            ...currentOrder.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final board = entry.value;
+              final selected = _selectedBoard == board;
+              return ReorderableDelayedDragStartListener(
+                key: ValueKey(board),
+                index: idx + 1,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _buildBoardChip(
+                    board,
+                    selected,
+                    primary,
+                    showDragHint: true,
+                  ),
+                ),
+              );
+            }),
+          ],
         ),
       );
     }
@@ -586,49 +975,82 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     bool selected,
     Color primary, {
     bool isRemovable = false,
+    bool showDragHint = false,
     VoidCallback? onSelected,
   }) {
     final isFav = ref.watch(boardFavoritesProvider).contains(boardName);
+    final isAll = boardName == 'ALL' || boardName == '전체';
 
     return GestureDetector(
-      onLongPress: () {
-        if (boardName == 'ALL' || boardName == '전체') return;
-        ref.read(boardFavoritesProvider.notifier).toggle(boardName);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isFav ? '$boardName 즐겨찾기 해제' : '$boardName 즐겨찾기 추가'),
-            duration: const Duration(milliseconds: 1000),
-          ),
-        );
+      onTap: () {
+        if (onSelected != null) {
+          onSelected();
+        } else {
+          setState(() {
+            _selectedBoard = boardName;
+            _noticeDisplayLimit = 10;
+          });
+        }
       },
-      child: ChoiceChip(
-        avatar: isFav && !isRemovable
-            ? Icon(Icons.star, size: 14, color: primary)
-            : null,
-        label: Text(boardName == 'ALL' ? '전체보기' : boardName),
-        selected: selected,
-        onSelected: (s) {
-          if (onSelected != null) {
-            onSelected();
-          } else {
-            setState(() => _selectedBoard = boardName);
-          }
-        },
-        selectedColor: primary.withOpacity(0.1),
-        backgroundColor: Theme.of(context).cardColor,
-        labelStyle: TextStyle(
-          color: selected ? primary : Colors.grey.shade700,
-          fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-        ),
-        shape: RoundedRectangleBorder(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? primary.withOpacity(0.1)
+              : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(30),
-          side: BorderSide(color: selected ? primary : Colors.transparent),
+          border: Border.all(color: selected ? primary : Colors.transparent),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (!isAll && !isRemovable)
+              GestureDetector(
+                onTap: () {
+                  ref.read(boardFavoritesProvider.notifier).toggle(boardName);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isFav ? '$boardName 즐겨찾기 해제' : '$boardName 즐겨찾기 추가',
+                      ),
+                      duration: const Duration(milliseconds: 1000),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Icon(
+                    isFav ? Icons.star : LucideIcons.star,
+                    size: 16,
+                    color: isFav ? primary : Colors.grey.shade400,
+                  ),
+                ),
+              ),
+            Text(
+              isAll ? '전체보기' : boardName,
+              style: TextStyle(
+                color: selected ? primary : Colors.grey.shade700,
+                fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+            if (showDragHint) ...[
+              const SizedBox(width: 6),
+              Icon(
+                LucideIcons.gripVertical,
+                size: 14,
+                color: Colors.grey.shade400,
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 
   Widget _buildNoticeList(Map<String, dynamic> theme) {
+    final primary = theme['primary'] as Color;
     final noticesAsync = ref.watch(noticesProvider);
     final favorites = ref.watch(favoritesNotifierProvider);
     final favBoards = ref.watch(boardFavoritesProvider);
@@ -657,21 +1079,72 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             ),
           );
 
-        final filtered = notices.where((n) {
-          if (_selectedGroup == 'MY') return favorites.contains(n.id);
+        // 초등교육과 버튼 처리
+        if (_selectedGroup == 'DEPT' && _selectedDept == '초등교육과') {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                children: [
+                  Icon(LucideIcons.messageCircle, size: 64, color: primary),
+                  const SizedBox(height: 24),
+                  const Text(
+                    '초등교육과 공지사항은\n다음 카페에서 확인 가능합니다.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      const url = 'https://m.cafe.daum.net/knue-primary/_rec';
+                      if (!await launchUrl(Uri.parse(url))) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('링크를 열 수 없습니다.')),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(
+                      LucideIcons.externalLink,
+                      color: Colors.white,
+                    ),
+                    label: const Text(
+                      '초등교육과 카페 바로가기',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
-          if (_selectedGroup == 'FAV_BOARD') {
-            if (favBoards.isEmpty) return false;
-            if (!favBoards.contains(n.category)) return false;
-            if (_selectedBoard != 'ALL' && _selectedBoard != '전체')
-              return n.category == _selectedBoard;
-            return true;
+        final filtered = notices.where((n) {
+          if (_selectedGroup == 'MY') {
+            final isFavNotice = favorites.contains(n.id);
+            final isFavBoard = favBoards.contains(n.category);
+            return isFavNotice || isFavBoard;
           }
 
           if (_selectedGroup == 'DEPT') {
             final targetDepts =
                 KnueScraper.collegeStructure[_selectedCollege] ?? [];
             if (!targetDepts.contains(n.category)) return false;
+            // DEPT group uses its own scraper logic, but notices list relies on 'category'.
             if (_selectedDept != 'ALL') return n.category == _selectedDept;
             return true;
           } else {
@@ -683,8 +1156,12 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
         if (filtered.isEmpty) {
           String msg = '해당하는 게시글이 없습니다.';
-          if (_selectedGroup == 'FAV_BOARD' && favBoards.isEmpty)
-            msg = '즐겨찾기한 게시판이 없습니다.\n다른 탭에서 게시판 칩을 길게 눌러 추가해보세요.';
+          if (_selectedGroup == 'MY' &&
+              favorites.isEmpty &&
+              favBoards.isEmpty) {
+            msg =
+                '즐겨찾기한 게시글이나 게시판이 없습니다.\n게시판 칩을 꾹 누르거나, 게시글의 별 모양을 눌러 추가해보세요.';
+          }
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(40),
@@ -707,32 +1184,66 @@ class _HomeTabState extends ConsumerState<HomeTab> {
           );
         }
 
-        return AnimationLimiter(
-          child: ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: filtered.length,
-            itemBuilder: (ctx, i) {
-              return AnimationConfiguration.staggeredList(
-                position: i,
-                duration: const Duration(milliseconds: 375),
-                child: SlideAnimation(
-                  verticalOffset: 50.0,
-                  child: FadeInAnimation(
-                    child: GestureDetector(
-                      onTap: () {
-                        ref
-                            .read(clickHistoryProvider.notifier)
-                            .logClick(filtered[i].title);
-                      },
-                      child: NoticeCard(notice: filtered[i], themeData: theme),
+        final displayList = filtered.take(_noticeDisplayLimit).toList();
+        final hasMore = filtered.length > displayList.length;
+
+        return Column(
+          children: [
+            AnimationLimiter(
+              child: ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                itemCount: displayList.length,
+                itemBuilder: (ctx, i) {
+                  return AnimationConfiguration.staggeredList(
+                    position: i,
+                    duration: const Duration(milliseconds: 375),
+                    child: SlideAnimation(
+                      verticalOffset: 50.0,
+                      child: FadeInAnimation(
+                        child: GestureDetector(
+                          onTap: () {
+                            ref
+                                .read(clickHistoryProvider.notifier)
+                                .logClick(displayList[i].title);
+                          },
+                          child: NoticeCard(
+                            notice: displayList[i],
+                            themeData: theme,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            if (hasMore)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _noticeDisplayLimit += 10;
+                    });
+                  },
+                  icon: const Icon(LucideIcons.plus),
+                  label: const Text('더보기'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: primary,
+                    backgroundColor: primary.withOpacity(0.1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
                     ),
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+          ],
         );
       },
       error: (error, stack) => Center(
@@ -904,58 +1415,201 @@ class SearchTab extends ConsumerStatefulWidget {
 class _SearchTabState extends ConsumerState<SearchTab> {
   String _searchQuery = '';
   String _searchScope = '전체';
+  final TextEditingController _controller = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     final primary = ref.watch(themeColorProvider);
     final themeData = {'primary': primary};
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '검색',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            onChanged: (v) => setState(() => _searchQuery = v),
-            decoration: InputDecoration(
-              hintText: '제목으로 검색',
-              prefixIcon: const Icon(LucideIcons.search),
-              filled: true,
-              fillColor: Theme.of(context).cardColor,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20),
-                borderSide: BorderSide.none,
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Search Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    offset: const Offset(0, 4),
+                    blurRadius: 10,
+                  ),
+                ],
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-          ),
-          const SizedBox(height: 24),
-          if (_searchQuery.isEmpty) ...[
-            const Text(
-              '카테고리',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '무엇을 찾으시나요?',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Hero(
+                    tag: 'search_bar',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: TextField(
+                        controller: _controller,
+                        onChanged: (v) => setState(() => _searchQuery = v),
+                        autofocus: false,
+                        style: const TextStyle(fontSize: 16),
+                        decoration: InputDecoration(
+                          hintText: '장학금, 봉사활동 등 검색',
+                          hintStyle: TextStyle(color: Colors.grey.shade400),
+                          prefixIcon: Icon(LucideIcons.search, color: primary),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(
+                                    LucideIcons.xCircle,
+                                    color: Colors.grey,
+                                  ),
+                                  onPressed: () {
+                                    _controller.clear();
+                                    setState(() => _searchQuery = '');
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: Theme.of(context).cardColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            Expanded(child: _buildSearchCategoryList(primary)),
-          ] else
-            Expanded(child: _buildSearchResults(themeData)),
-        ],
+
+            // Body Content
+            Expanded(
+              child: _searchQuery.isEmpty
+                  ? _buildCategorySelection(primary)
+                  : _buildSearchResults(themeData),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildCategorySelection(Color primary) {
+    final scraper = KnueScraper();
+    final sections = [
+      {
+        'title': '빠른 필터',
+        'icon': LucideIcons.flame,
+        'boards': ['전체', '학사공지', '장학금', '취업정보'],
+      },
+      {
+        'title': '본부 공지',
+        'icon': LucideIcons.building2,
+        'boards': scraper.boardGroups['MAIN']?.keys.toList() ?? [],
+      },
+      {
+        'title': '부속 기관',
+        'icon': LucideIcons.library,
+        'boards': scraper.boardGroups['ANNEX']?.keys.toList() ?? [],
+      },
+      {
+        'title': '대학원',
+        'icon': LucideIcons.school,
+        'boards': scraper.boardGroups['GRAD']?.keys.toList() ?? [],
+      },
+    ];
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(24),
+      itemCount: sections.length,
+      itemBuilder: (ctx, index) {
+        final section = sections[index];
+        final title = section['title'] as String;
+        final icon = section['icon'] as IconData;
+        final boards = section['boards'] as List<String>;
+
+        if (boards.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 18, color: Colors.grey.shade600),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: boards.map((board) {
+                  final selected = _searchScope == board;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    child: ChoiceChip(
+                      label: Text(board),
+                      selected: selected,
+                      onSelected: (s) => setState(() => _searchScope = board),
+                      selectedColor: primary.withOpacity(0.15),
+                      backgroundColor: Theme.of(context).cardColor,
+                      labelStyle: TextStyle(
+                        color: selected ? primary : Colors.grey.shade600,
+                        fontWeight: selected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        fontSize: 14,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide(
+                          color: selected
+                              ? primary.withOpacity(0.5)
+                              : Colors.transparent,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   Widget _buildSearchResults(Map<String, dynamic> theme) {
     final noticesAsync = ref.watch(noticesProvider);
     final notices = noticesAsync.valueOrNull ?? [];
+    final primary = theme['primary'] as Color;
+
     final results = notices.where((n) {
       final cleanTitle = n.title
           .replaceAll('새글', '')
@@ -970,33 +1624,47 @@ class _SearchTabState extends ConsumerState<SearchTab> {
 
     return Column(
       children: [
-        Row(
-          children: [
-            const Text(
-              '검색 결과',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          alignment: Alignment.centerLeft,
+          child: Row(
+            children: [
+              Text(
+                '$_searchScope ',
+                style: TextStyle(fontWeight: FontWeight.bold, color: primary),
               ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '${results.length}건',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: theme['primary'],
+              const Text('검색 결과', style: TextStyle(color: Colors.grey)),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${results.length}건',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: primary,
+                    fontSize: 12,
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
         Expanded(
           child: results.isEmpty
-              ? const Center(child: Text("검색 결과가 없습니다."))
+              ? _buildEmptyState(primary)
               : AnimationLimiter(
                   child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     itemCount: results.length,
                     itemBuilder: (ctx, i) =>
                         AnimationConfiguration.staggeredList(
@@ -1024,86 +1692,29 @@ class _SearchTabState extends ConsumerState<SearchTab> {
     );
   }
 
-  Widget _buildSearchCategoryList(Color primary) {
-    final scraper = KnueScraper();
-    final sections = [
-      {
-        'title': '본부 공지',
-        'boards': scraper.boardGroups['MAIN']?.keys.toList() ?? [],
-      },
-      {
-        'title': '부속 기관',
-        'boards': scraper.boardGroups['ANNEX']?.keys.toList() ?? [],
-      },
-      {
-        'title': '대학원',
-        'boards': scraper.boardGroups['GRAD']?.keys.toList() ?? [],
-      },
-    ];
-
-    return ListView.builder(
-      itemCount: sections.length + 1,
-      itemBuilder: (ctx, index) {
-        if (index == 0)
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Wrap(
-              spacing: 8,
-              children: [
-                ChoiceChip(
-                  label: const Text('전체'),
-                  selected: _searchScope == '전체',
-                  onSelected: (s) => setState(() => _searchScope = '전체'),
-                  selectedColor: primary.withOpacity(0.1),
-                  backgroundColor: Theme.of(context).cardColor,
-                  labelStyle: TextStyle(
-                    color: _searchScope == '전체'
-                        ? primary
-                        : Colors.grey.shade700,
-                  ),
-                ),
-              ],
+  Widget _buildEmptyState(Color primary) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(LucideIcons.searchX, size: 64, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text(
+            '"$_searchQuery"',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: primary,
             ),
-          );
-        final section = sections[index - 1];
-        final boards = section['boards'] as List<String>;
-        if (boards.isEmpty) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                section['title'] as String,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: primary,
-                ),
-              ),
-            ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: boards.map((board) {
-                final selected = _searchScope == board;
-                return ChoiceChip(
-                  label: Text(board),
-                  selected: selected,
-                  onSelected: (s) => setState(() => _searchScope = board),
-                  selectedColor: primary.withOpacity(0.1),
-                  backgroundColor: Theme.of(context).cardColor,
-                  labelStyle: TextStyle(
-                    color: selected ? primary : Colors.grey.shade700,
-                    fontSize: 12,
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-          ],
-        );
-      },
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '해당하는 공지사항이 없습니다.\n다른 키워드로 검색해보세요.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1174,8 +1785,22 @@ class SettingsTab extends ConsumerWidget {
                         subtitle: '등록한 키워드 포함 시 알림',
                         value: ref.watch(alarmProvider),
                         onChanged: (v) =>
-                            ref.read(alarmProvider.notifier).state = v,
+                            ref.read(alarmProvider.notifier).setAlarm(v),
                         color: Colors.orange,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('위젯 설정'),
+                  _buildSettingsCard(
+                    context,
+                    children: [
+                      _buildInfoTile(
+                        icon: LucideIcons.layoutGrid,
+                        title: '홈 화면 위젯 설정',
+                        subtitle: '위젯에 표시될 게시판 선택 및 미리보기',
+                        color: Colors.blueAccent,
+                        onTap: () => _showWidgetSettings(context, ref),
                       ),
                     ],
                   ),
@@ -1197,7 +1822,30 @@ class SettingsTab extends ConsumerWidget {
                         title: '개발자 정보',
                         subtitle: '한국교원대학교 예비교사',
                         color: Colors.purple,
-                        onTap: () => _showDeveloperInfo(context),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const DeveloperInfoPage(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildDivider(context),
+                      _buildInfoTile(
+                        icon: LucideIcons.send,
+                        title: '사용자 의견 보내기',
+                        subtitle: '오류 제보 및 기능 제안',
+                        color: Colors.green,
+                        onTap: () => _sendFeedback(context),
+                      ),
+                      _buildDivider(context),
+                      _buildInfoTile(
+                        icon: LucideIcons.refreshCcw,
+                        title: '설정 초기화',
+                        subtitle: '모든 데이터 및 설정 초기화',
+                        color: Colors.redAccent,
+                        onTap: () => _showResetDialog(context),
                       ),
                       _buildDivider(context),
                       _buildInfoTile(
@@ -1516,88 +2164,386 @@ class SettingsTab extends ConsumerWidget {
     );
   }
 
-  void _showDeveloperInfo(BuildContext context) {
+  void _showWidgetSettings(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => Container(
-        height: 400,
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 40),
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.blue.withOpacity(0.1),
-              ),
-              child: const Icon(LucideIcons.user, size: 50, color: Colors.blue),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              "Hwang",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "KNUE Physics & Elementary Edu",
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
-            ),
-            const SizedBox(height: 30),
-            _buildDevInfoRow(
-              LucideIcons.graduationCap,
-              "소속",
-              "한국교원대 물리교육/초등교육",
-            ),
-            _buildDevInfoRow(LucideIcons.code, "관심분야", "Flutter, Embedded, AI"),
-            _buildDevInfoRow(
-              LucideIcons.mail,
-              "이메일",
-              "knuemeal16486@gmail.com",
-            ),
-          ],
-        ),
-      ),
+      backgroundColor: Colors.transparent,
+      builder: (context) => const WidgetSettingsSheet(),
     );
   }
 
-  Widget _buildDevInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
-      child: Row(
+  void _sendFeedback(BuildContext context) {
+    showDialog(context: context, builder: (context) => const FeedbackDialog());
+  }
+
+  void _showResetDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('설정 초기화'),
+        content: const Text('모든 공지사항 스크랩 데이터와 설정이 삭제됩니다. 계속하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await resetAllSettings();
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('설정이 초기화되었습니다. 앱을 재발생해주세요.')),
+                );
+              }
+            },
+            child: const Text('초기화', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class WidgetSettingsSheet extends ConsumerWidget {
+  const WidgetSettingsSheet({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedBoards = ref.watch(widgetBoardsProvider);
+    final primary = Theme.of(context).primaryColor;
+    final scraper = KnueScraper();
+
+    // 모든 게시판 목록 가져오기
+    final List<String> allBoards = [];
+    scraper.boardGroups.forEach((group, boards) {
+      allBoards.addAll(boards.keys);
+    });
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.8,
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      child: Column(
         children: [
-          Icon(icon, size: 20, color: Colors.grey.shade400),
-          const SizedBox(width: 20),
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(width: 20),
+          const SizedBox(height: 24),
+          const Text(
+            '홈 위젯 설정',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '위젯에 표시될 게시판을 선택하세요.',
+            style: TextStyle(color: Colors.grey),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: primary.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(LucideIcons.layoutGrid, size: 16, color: primary),
+                    const SizedBox(width: 8),
+                    const Text(
+                      '위젯 미리보기',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (selectedBoards.isEmpty)
+                  const Text(
+                    '선택된 게시판이 없습니다.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    children: selectedBoards
+                        .map(
+                          (b) => Chip(
+                            label: Text(
+                              b,
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                            backgroundColor: primary.withValues(alpha: 0.1),
+                            padding: EdgeInsets.zero,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        )
+                        .toList(),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: allBoards.toSet().map((board) {
+                final isSelected = selectedBoards.contains(board);
+                return CheckboxListTile(
+                  title: Text(board, style: const TextStyle(fontSize: 15)),
+                  value: isSelected,
+                  activeColor: primary,
+                  onChanged: (v) =>
+                      ref.read(widgetBoardsProvider.notifier).toggle(board),
+                );
+              }).toList(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primary,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              child: const Text(
+                '저장 완료',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class FeedbackDialog extends StatefulWidget {
+  const FeedbackDialog({super.key});
+
+  @override
+  State<FeedbackDialog> createState() => _FeedbackDialogState();
+}
+
+class _FeedbackDialogState extends State<FeedbackDialog> {
+  final TextEditingController _feedbackController = TextEditingController();
+  bool _isAgreed = false;
+
+  @override
+  void dispose() {
+    _feedbackController.dispose();
+    super.dispose();
+  }
+
+  String? _encodeQueryParameters(Map<String, String> params) {
+    return params.entries
+        .map(
+          (e) =>
+              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}',
+        )
+        .join('&');
+  }
+
+  Future<void> _sendFeedback() async {
+    if (_feedbackController.text.isEmpty || !_isAgreed) return;
+
+    const String developerEmail = 'knuemeal16486@gmail.com';
+    const String subject = '[KNUE MoA] 사용자 의견 및 제보';
+    final String body = _feedbackController.text;
+
+    final Uri emailUri = Uri(
+      scheme: 'mailto',
+      path: developerEmail,
+      query: _encodeQueryParameters(<String, String>{
+        'subject': subject,
+        'body': '내용:\n$body\n\n----------------------------\n(  )',
+      }),
+    );
+
+    try {
+      if (await canLaunchUrl(emailUri)) {
+        await launchUrl(emailUri, mode: LaunchMode.externalApplication);
+        if (mounted) Navigator.pop(context);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("기본 이메일 앱을 실행할 수 없습니다.")),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("오류가 발생했습니다: $e")));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).primaryColor;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isButtonEnabled =
+        _feedbackController.text.isNotEmpty && _isAgreed;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      insetPadding: const EdgeInsets.all(20),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "사용자 의견 보내기",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.grey),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "KNUE MoA를 더 나은 앱으로 만들기 위해\n여러분의 소중한 의견을 들려주세요.",
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: isDark ? Colors.grey.shade300 : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                  ),
+                ),
+                child: TextField(
+                  controller: _feedbackController,
+                  maxLines: 6,
+                  onChanged: (text) => setState(() {}),
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                  decoration: InputDecoration(
+                    hintText: "불편했던 점, 개선할 점, 칭찬하고 싶은 점 등을 자유롭게 적어주세요.",
+                    hintStyle: TextStyle(
+                      color: isDark
+                          ? Colors.grey.shade500
+                          : Colors.grey.shade500,
+                      fontSize: 14,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.all(16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => setState(() => _isAgreed = !_isAgreed),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Checkbox(
+                        value: _isAgreed,
+                        activeColor: primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        onChanged: (value) =>
+                            setState(() => _isAgreed = value ?? false),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(
+                          text: "개인정보 수집 및 이용에 동의합니다. ",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.black87,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: "(필수)",
+                              style: TextStyle(
+                                color: primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: isButtonEnabled ? _sendFeedback : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primary,
+                    disabledBackgroundColor: isDark
+                        ? Colors.grey.shade800
+                        : Colors.grey.shade300,
+                    foregroundColor: Colors.white,
+                    disabledForegroundColor: Colors.grey.shade500,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    "이메일로 보내기",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
