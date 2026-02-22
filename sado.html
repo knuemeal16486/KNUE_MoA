@@ -1,0 +1,582 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+
+
+
+
+
+
+
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ko" lang="ko">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=euc-kr" />
+<title>한국교원대학교 사도교육원</title>
+<link rel="stylesheet" type="text/css" href="../../css/default.css" />
+<link rel="stylesheet" type="text/css" href="../../css/sub.css" />
+<link rel="stylesheet" type="text/css" href="../../css/contents.css" />
+<link rel="stylesheet" type="text/css" href="../../css/board.css" />
+<script language="javascript" type="text/javascript" src="../../js/menu.js"></script>
+<script language="javascript" type="text/javascript" src="../../js/default.js"></script>
+<!-- lnb -->
+<script language="javascript" type="text/javascript" src="../../js/jquery-1.7.1.min.js"></script>
+<!-- //lnb -->
+<!-- main -->
+<script language="javascript" type="text/javascript" src="../../js/moveContents.js"></script>
+<!-- //main -->
+<script language="javascript" type="text/javascript" src="/inc/commonlib.js"></script>
+
+<script language="javascript" type="text/javascript" src="/inc/commonlib.js"></script>
+<script language="javascript" type="text/javascript">
+<!--
+var pkeys = new Array();
+
+
+for (var i = 0; i < pkeys.length; i++) {
+	//alert("pchk"+pkeys[i] + "::[" + getCookie("pchk"+pkeys[i]) + "]");
+	if (getCookie("pchk"+pkeys[i]) != "Y") {
+		var popupUrl = "/nvboard/popup.jsp?bodcode=popup&uid="+pkeys[i];
+		window.open(popupUrl, "", "top=0,left=0,width=0,height=0,scrollbars=1");
+	}
+}
+//-->
+</script>
+
+
+
+<!-- 주메뉴 -->
+<script language="javascript" type="text/javascript">
+<!--
+	jQuery(document).ready(function() {
+		// 탑메뉴 전체메뉴
+		jQuery(".subNavi ul").hide();
+		jQuery('.subNavi a').mouseenter(function() {
+			jQuery("#lnb_box").slideDown(100, function() {
+				jQuery("#lnb_box").addClass("lnb_box");
+				jQuery(".subNavi ul").slideDown(100);
+			});
+
+		}).focusin(function(){
+			jQuery(this).mouseenter();
+		});
+
+		jQuery('#lnb_box').mouseleave(function() {
+			jQuery(".subNavi ul").slideUp(100, function() {
+				jQuery("#lnb_box").removeClass("lnb_box");
+			});
+
+		});
+
+		jQuery('#container').focusin(function(){
+			jQuery('#lnb_box').mouseleave();
+		});
+
+	});
+
+	function redirectPage(goUrl) {
+		
+			if (confirm("로그인이 필요한 서비스입니다. 로그인을 하시겠습니까?")) {
+				window.open('/pub/memb/memb080101.jsp?ifr=Y&amp;goUrl='+goUrl,'login','width=360,height=100');
+			}
+		
+	}
+
+//-->
+</script>
+<!-- //주메뉴 -->
+<script language="javascript" type="text/javascript" >
+<!--
+function CaricaFoto(img){
+  foto1= new Image();
+  foto1.src=(img);
+  Controlla(img);
+}
+function Controlla(img){
+  if((foto1.width!=0)&&(foto1.height!=0)){
+    viewFoto(img);
+  }
+  else{
+    funzione="Controlla('"+img+"')";
+    intervallo=setTimeout(funzione,20);
+  }
+}
+function viewFoto(img){
+  largh=foto1.width;
+  altez=foto1.height;
+  stringa="width="+largh+",height="+altez+",left="+10+",top="+10+",resizable="+1;
+  image_view=window.open(img,"",stringa);
+  image_view.document.write("<html><head><title>:+:한국교원대학교 사도교육원:+:</title></head>");
+  image_view.document.write("<body leftmargin=0 marginwidth=0 topmargin=0 marginheight=0>");
+  image_view.document.write("<img src="+img+" onclick='self.close()' style='cursor:hand'>");
+}
+//  -->
+</script>
+</head>
+<body>
+<!-- wrap -->
+<div id="wrap">
+	<div class="skipNavi">
+		<ul>
+			<li><a href="#lnb">주메뉴 바로가기</a></li>
+			<li><a href="#container">본문 바로가기</a></li>
+			<li><a href="#footer">사이트정보 바로가기</a></li>
+		</ul>
+	</div>
+	<!-- header -->
+	<div id="header">
+		<div id="lnb_box">
+			<div id="header_box">
+				<h1><a href="#ci" onClick="ci(); return false;"><img src="../../img/com/logo.gif" alt="한국교원대학교 사도교육원 KNUE Residential Education Center Toward Best Teachers" /></a></h1>
+				<!-- gnb -->
+				<div id="gnb">
+					<h2 class="hidden">상단메뉴</h2>
+					<!--<ul>
+				  
+						<li><a href="#gnb01" onClick="gnb01(); return false;">로그인</a></li>
+						<li><a href="#gnb03" onClick="gnb03(); return false;">즐겨찾기</a></li>
+					
+					</ul>-->
+				</div>
+				<!-- //gnb -->
+				<!-- lnb -->
+				<div id="lnb">
+					<h2 class="hidden">주메뉴</h2>
+					<ul>
+						<li class="subNavi lnb1">
+							<h3><a href="#menu010101" onClick="menu010101(); return false;">사도교육원안내</a></h3>
+							<ul class="lnb_sub" style="display:none;">
+								<li><a href="#menu010101" onClick="menu010101(); return false;">사도교육원장 인사말</a></li>
+								<li><a href="#menu010201" onClick="menu010201(); return false;">사도교육원 소개</a></li>
+								<!--<li><a href="#menu010301" onClick="menu010301(); return false;">사도교양교육과정 안내</a></li>-->
+								<li><a href="#menu010401" onClick="menu010401(); return false;">사도교육원규정 시행세칙</a></li>
+								<li><a href="#menu010501" onClick="menu010501(); return false;">사도교육원 현황</a></li>
+								<li><a href="#menu010601" onClick="menu010601(); return false;">찾아오시는 길</a></li>
+							</ul>
+						</li>
+						<li class="subNavi lnb2">
+							<h3><a href="#menu020101" onClick="menu020101(); return false;" class="pd50">사도교육부</a></h3>
+							<ul class="lnb_sub" style="display:none;">
+								<li><a href="#menu020101" onClick="menu020101(); return false;">사도교육부 소개</a></li>
+								<li><a href="#menu020201" onclick="menu020201(); return false;">사도교육과정 개요</a></li>
+								<li><a href="#menu020301" onclick="menu020301(); return false;">사도교육과정 근거</a></li>
+								<li><a href="#menu020401" onclick="menu020401(); return false;">사도교육과정 안내</a></li>
+								<!--<li><a href="#menu020201" onClick="menu020201(); return false;">명사특강</a></li>
+								<li><a href="#menu020301" onClick="menu020301(); return false;">봉사와 배려</a></li>
+								<li><a href="#menu020401" onClick="menu020401(); return false;">교사의 품위와 도덕성</a></li>
+								<li><a href="#menu020501" onClick="menu020501(); return false;">자율과 협력</a></li>
+								<li><a href="#menu020601" onClick="menu020601(); return false;">인성교육</a></li>
+								<li><a href="#menu020701" onClick="menu020701(); return false;">리더십교육</a></li>
+								<li><a href="#menu020801" onClick="menu020801(); return false;">함께만드는 사도교양교육원문화</a></li>-->
+								<li><a href="#menu020901" onClick="menu020901(); return false;">상벌점안내</a></li>
+								<li><a href="#menu021001" onClick="menu021001(); return false;">외박신청</a></li>
+								<li><a href="#menu021101" onClick="menu021101(); return false;">같은방신청</a></li>
+								<!--<li><a href="#menu021201" onClick="menu021201(); return false;">내가추천하는 여행명소</a></li>-->
+							</ul>
+						</li>
+						<!--<li class="subNavi lnb3">
+							<h3><a href="#menu030101" onClick="menu030101(); return false;" class="pd50">학생상담부</a></h3>
+							<ul class="lnb_sub" style="display:none;">
+								<li><a href="#menu030101" onClick="menu030101(); return false;">학생상담부 소개</a></li>
+								<li><a href="#menu030201" onClick="menu030201(); return false;">개인상담</a></li>
+								<li><a href="#menu030301" onClick="menu030301(); return false;">집단상담</a></li>
+								<li><a href="#menu030401" onClick="menu030401(); return false;">심리검사</a></li>
+								<li><a href="#menu030501" onClick="menu030501(); return false;">교육 및 활동</a></li>
+								<li><a href="#menu030601" onClick="menu030601(); return false;">성희롱예방 및 양성교육평등</a></li>
+								<li><a href="#menu030701" onClick="menu030701(); return false;">상담게시판</a></li>
+							</ul>
+						</li>-->
+						<li class="subNavi lnb4">
+							<h3><a href="#menu040101" onClick="menu040101(); return false;">원생안내</a></h3>
+							<ul class="lnb_sub" style="display:none;">
+								<li><a href="#menu040101" onClick="menu040101(); return false;">학부·대학원 입사안내</a></li>
+								<li><a href="#menu040102" onClick="menu040102(); return false;">교육대학원 입사안내</a></li>
+								<li><a href="#menu040201" onClick="menu040201(); return false;">사도교육원비안내</a></li>
+								<!--<li><a href="#menu040301" onClick="menu040301(); return false;">시설물보수요청</a></li>-->
+								<li><a href="#menu040401" onClick="menu040401(); return false;">식단표</a></li>
+								<!--<li><a href="#menu040501" onClick="menu040501(); return false;">중도퇴사안내</a></li>-->
+							</ul>
+						</li>
+						<li class="subNavi lnb6">
+							<h3><a href="#menu060101" onClick="menu060101(); return false;" >사도교육원자치회</a></h3>
+							<ul class="lnb_sub" style="display:none;">
+								<li><a href="#menu060101" onClick="menu060101(); return false;">조직도</a></li>
+								<li><a href="#menu060201" onClick="menu060201(); return false;">주요활동</a></li>
+								<!--<li><a href="#menu060301" onClick="menu060301(); return false;">자율게시판</a></li>-->
+							</ul>
+						</li>
+            <li class="subNavi lnb5">
+							<h3><a href="#menu050101" onClick="menu050901(); return false;" class="bg_no">알림마당</a></h3>
+							<ul class="lnb_sub" style="display:none;">
+								<li><a href="#menu050901" onclick="menu050901(); return false;">일반공지</a></li>
+								<li><a href="#menu050101" onClick="menu050101(); return false;">학부·대학원</a></li>
+								<li><a href="#menu051001" onclick="menu051001(); return false;">교육대학원</a></li>
+								<li><a href="#menu050201" onClick="menu050201(); return false;">질의응답</a></li>
+								<!--<li><a href="#menu050301" onclick="menu050301(); return false;">건의사항</a></li>-->
+								<!--<li><a href="#menu050401" onclick="menu050401(); return false;">사도교육원일정</a></li>
+								<li><a href="#menu050501" onClick="menu050501(); return false;">예산결산 지침공고</a></li>
+								<li><a href="#menu050601" onClick="menu050601(); return false;">협력갤러리</a></li>-->
+								<!--<li><a href="#menu050701" onClick="menu050701(); return false;">생활교육부전달사항</a></li>-->
+								<!--<li><a href="#menu050801" onClick="menu050801(); return false;">건의사항</a></li>-->
+							</ul>
+						</li>
+					</ul>
+				</div>
+				<!-- //lnb -->
+			</div>
+		</div>
+	</div>
+	<!-- //header -->
+	<!-- container -->
+	<div id="container">
+		<!-- spot -->
+		<div id="spot">
+			<h2 class="hidden">서브비쥬얼</h2>
+			<div class="spot_bg5"></div>
+		</div>
+		<!-- //spot -->
+		<!-- container_box -->
+    <div id="container_box">
+      <!-- snb -->
+      <div id="snb">
+        
+          	
+	<div class="snb">
+		<h2>알림마당</h2>
+		<ul class="snb_sub">			
+			<li><a href="#menu050901" onclick="menu050901(); return false;" class="subSel selectOn
+">일반공지</a></li>
+			<li><a href="#menu050101" onclick="menu050101(); return false;" class="subSel">학부·대학원</a></li>
+			<li><a href="#menu051001" onclick="menu051001(); return false;" class="subSel">교육대학원</a></li>
+			<li><a href="#menu050201" onclick="menu050201(); return false;" class="subSel">질의응답</a></li>
+			<!--<li><a href="#menu050301" onclick="menu050301(); return false;" class="subSel">건의사항</a></li>-->
+			<!--<li><a href="#menu050401" onclick="menu050401(); return false;" class="subSel">사도교육원 일정</a></li>-->
+			<!--<li><a href="#menu050501" onclick="menu050501(); return false;" class="subSel">예산결산 지침공고</a></li>
+			<li><a href="#menu050601" onclick="menu050601(); return false;" class="subSel">협력갤러리</a></li>-->
+			<!--<li><a href="#menu050701" onclick="menu050701(); return false;" class="subSel">생활교육부전달사항</a></li>-->
+			<!--<li><a href="#menu050801" onclick="menu050801(); return false;" class="subSel">건의사항</a></li>-->
+		</ul>
+	</div>
+        
+        <div class="snb_bot">
+          <!--<ul>
+            <li class="li1"><a href="#snbban01" onClick="snbban01(); return false;">입사신청</a></li>
+            <li class="li2"><a href="#snbban02" onClick="snbban02(); return false;">교육신청</a></li>
+            <li class="li3"><a href="#snbban03" onClick="snbban03(); return false;">분할납부</a></li>
+            <li class="li4"><a href="#snbban04" onClick="snbban04(); return false;">같은방친구</a></li>
+            <li class="li5"><a href="#snbban05" onClick="snbban05(); return false;">외박신청</a></li>
+            <li class="li6"><a href="#snbban06" onClick="snbban06(); return false;">입사안내</a></li>
+          </ul>-->
+        </div>
+      </div>
+      <!-- //snb -->
+      <!-- stle -->
+      <div id="stle">
+        <h3>일반공지
+</h3>
+        <div class="stle_loca">
+        
+          <img src="/img/com/icon_home.gif" alt="home" /> &gt; 알림마당 &gt; <span class="stle_txt_over">일반공지</span>
+        
+        </div>
+      </div>
+		  <!-- //stle -->
+
+
+      <!-- contents -->
+      <div id="contents">
+
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+<script language="javascript" type="text/javascript" src="/nvboard/js/gony.filebtn.js"></script>
+<script language="javascript" type="text/javascript" src="/nvboard/js/commonlib.js"></script>
+<script language="javascript" type="text/javascript" src="/nvboard/js/ifr.js"></script>
+<script language="javascript" type="text/javascript" src="/nvboard/js/popupcalendar.js"></script>
+<script language="javascript" type="text/javascript" src="/nvboard/skin/board_notice/js/validate.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script language="javascript" type="text/javascript" src="/nvboard/js/gony.filebtn.js"></script>
+<script language="javascript" type="text/javascript" src="/nvboard/js/commonlib.js"></script>
+<script language="javascript" type="text/javascript" src="/nvboard/js/ifr.js"></script>
+<script language="javascript" type="text/javascript" src="/nvboard/js/popupcalendar.js"></script>
+<script language="javascript" type="text/javascript" src="/nvboard/skin/board_notice/js/validate.js"></script>
+
+
+
+<!-- search form -->
+
+<!-- // search form -->
+
+<!-- board -->
+<div id="board"> 
+	<!-- board_top -->
+	
+
+<script>
+function setOnSubmit() {
+	var myform = document.forms['frmSearch'];
+	var key = myform['key'].value;
+	if( key.length < 1) {
+        alert( '검색내용을 입력하세요.');
+        return false;
+    }else{
+    	
+    	key = key.replace(/\</g, "&lt;");
+    	key = key.replace(/\>/g, "&gt;");
+    	key = key.replace(/\<|\>|\"|\'|%|\;|\(|\)|\&|\+|\-/g,"");
+    	myform['key'].value = key;
+    }   
+}
+</script>
+
+
+<div id="board_top"> 
+	<!-- 페이지정보 -->
+	<div class="post_info"><span class="font_post">Total :</span> 108 <span class="font_post">Page :</span> 1/11 </div>
+	<!-- //페이지정보 --> 
+	<!-- 검색 -->
+	<div class="search_info">
+		<form name="frmSearch" method="get" action="/bbs/lstBoard.jsp" onsubmit="return setOnSubmit(); return false;">
+			<input type="hidden" name="bodcode" value="edunotice"/>
+			<fieldset>
+				<legend>검색</legend>
+				<select id="search_key" name="selopt" title="검색필드" class="select_search">
+					<option value="TITLE">제목</option>
+					<option value="NAME">이름</option>
+					<option value="CONTENT">내용</option>
+					<option value="all">전체</option>
+				</select>
+				<input type="text" id="key" name="key" value="" size="40" title="검색어" class="input_search" />
+				<span class="btn_s_56_input"><input value="검색" type="submit" /></span>
+			</fieldset>
+		</form>
+	</div>
+	<!-- //검색 --> 
+</div>
+	<!-- //board_top --> 
+	<!-- board_list -->
+	<div id="board_list">
+		<table width="100%" border="1" cellspacing="0" cellpadding="0" summary="게시판리스트" class="table_board_basic">
+			<caption>
+			게시판리스트
+			</caption>
+			<colgroup>
+			<col width="60" />
+			<col />
+			<col width="90" />
+			<col width="50" />
+			<col width="90" />
+			<col width="70" />
+			</colgroup>
+			<thead>
+				<!-- {{ board header -->
+				
+				<tr>
+					<th scope="col">번호</th>
+					<th scope="col">제목</th>
+					<th scope="col">작성자</th>
+					<th scope="col">첨부</th>
+					<th scope="col">날짜</th>
+					<th scope="col" class="th_right">조회</th>
+				</tr>
+				<!-- }} board header -->
+			</thead>
+			<tbody>
+				
+
+		<tr>
+			<td><img src="/nvboard/skin/board_notice/img/icon_notice.gif" border="0" alt="" /></td>
+			<td class="td_left"> <a href="outBoard.jsp?bodcode=edunotice&amp;fid=91&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=1&amp;uid=111&amp;mode=view">사도교육원 희망입사 중도 퇴사원서(방중입사 포함)</a></td>
+			<td>사도교육부</td>
+			<td><a href="/nvboard/filedown.jsp?bodcode=edunotice&amp;filename=퇴사원서(양식).hwp&amp;maskname=11704330177538"><img src="/nvboard/skin/board_notice/img/icon_folder.gif" border="0" alt="" /></a>&nbsp;</td>
+			<td class="td_eng">2024-01-04</td>
+			<td class="td_eng">2925</td>
+		</tr>
+
+				
+
+		<tr>
+			<td class="td_eng"> 108</td>
+			<td class="td_left"><a href="outBoard.jsp?bodcode=edunotice&amp;fid=126&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=1&amp;uid=147&amp;mode=view">한국교원대학교 사도교육원 BTL 기숙사(다정관, 다..</a> +  </td>
+			<td>사도교육원</td>
+			<td><a href="/nvboard/filedown.jsp?bodcode=edunotice&amp;filename=1. 사도교육원 CCTV 설치 행정예고 공고문.hwp&amp;maskname=11770625952042"><img src="/nvboard/skin/board_notice/img/icon_folder.gif" border="0" alt="" /></a>&nbsp;</td>
+			<td class="td_eng">2026-02-09</td>
+			<td class="td_eng">417</td>
+		</tr>
+
+		<tr>
+			<td class="td_eng"> 107</td>
+			<td class="td_left"><a href="outBoard.jsp?bodcode=edunotice&amp;fid=125&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=1&amp;uid=146&amp;mode=view">2026년 1학기 국가장학금 신청 홍보 포스터 게시</a> </td>
+			<td>행정실</td>
+			<td>&nbsp;</td>
+			<td class="td_eng">2026-01-29</td>
+			<td class="td_eng">270</td>
+		</tr>
+
+		<tr>
+			<td class="td_eng"> 106</td>
+			<td class="td_left"><a href="outBoard.jsp?bodcode=edunotice&amp;fid=124&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=1&amp;uid=145&amp;mode=view">2025학년도 동계방학 중 비입사생 체력단련실 이용..</a> </td>
+			<td>행정실</td>
+			<td>&nbsp;</td>
+			<td class="td_eng">2025-12-16</td>
+			<td class="td_eng">1229</td>
+		</tr>
+
+		<tr>
+			<td class="td_eng"> 105</td>
+			<td class="td_left"><a href="outBoard.jsp?bodcode=edunotice&amp;fid=123&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=1&amp;uid=144&amp;mode=view">2025학년도 동계방학 중 체력단련실 이용 안내</a> </td>
+			<td>행정실</td>
+			<td>&nbsp;</td>
+			<td class="td_eng">2025-12-16</td>
+			<td class="td_eng">1132</td>
+		</tr>
+
+		<tr>
+			<td class="td_eng"> 104</td>
+			<td class="td_left"><a href="outBoard.jsp?bodcode=edunotice&amp;fid=122&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=1&amp;uid=143&amp;mode=view">복지관 노후시설 개선공사 알림</a> +  </td>
+			<td>행정실</td>
+			<td>&nbsp;</td>
+			<td class="td_eng">2025-12-11</td>
+			<td class="td_eng">439</td>
+		</tr>
+
+		<tr>
+			<td class="td_eng"> 103</td>
+			<td class="td_left"><a href="outBoard.jsp?bodcode=edunotice&amp;fid=121&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=1&amp;uid=142&amp;mode=view">2025 인구주택총조사 홍보 영상</a> </td>
+			<td>행정실</td>
+			<td><a href="/nvboard/filedown.jsp?bodcode=edunotice&amp;filename=한국교원대.mp4&amp;maskname=11762752339368"><img src="/nvboard/skin/board_notice/img/icon_folder.gif" border="0" alt="" /></a>&nbsp;</td>
+			<td class="td_eng">2025-11-10</td>
+			<td class="td_eng">215</td>
+		</tr>
+
+		<tr>
+			<td class="td_eng"> 102</td>
+			<td class="td_left"><a href="outBoard.jsp?bodcode=edunotice&amp;fid=120&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=1&amp;uid=141&amp;mode=view">사도교육원 도로 재포장 공사에 따른 차량 통제 알림..</a> </td>
+			<td>행정실</td>
+			<td><a href="/nvboard/filedown.jsp?bodcode=edunotice&amp;filename=도로 재포장 공사에 따른 차량 통제 알림.hwp&amp;maskname=11762246694472"><img src="/nvboard/skin/board_notice/img/icon_folder.gif" border="0" alt="" /></a>&nbsp;</td>
+			<td class="td_eng">2025-11-04</td>
+			<td class="td_eng">232</td>
+		</tr>
+
+		<tr>
+			<td class="td_eng"> 101</td>
+			<td class="td_left"><a href="outBoard.jsp?bodcode=edunotice&amp;fid=119&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=1&amp;uid=139&amp;mode=view">관리동 점자블럭 설치 공사에 따른 통행 주의 안내(..</a> </td>
+			<td>행정실</td>
+			<td>&nbsp;</td>
+			<td class="td_eng">2025-10-14</td>
+			<td class="td_eng">298</td>
+		</tr>
+
+		<tr>
+			<td class="td_eng"> 100</td>
+			<td class="td_left"><a href="outBoard.jsp?bodcode=edunotice&amp;fid=118&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=1&amp;uid=138&amp;mode=view">공사 현장 드론 촬영 일정 안내</a> +  </td>
+			<td>행정실</td>
+			<td>&nbsp;</td>
+			<td class="td_eng">2025-09-30</td>
+			<td class="td_eng">350</td>
+		</tr>
+
+		<tr>
+			<td class="td_eng"> 99</td>
+			<td class="td_left"><a href="outBoard.jsp?bodcode=edunotice&amp;fid=117&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=1&amp;uid=137&amp;mode=view">2025년 하반기 사도교육원 화재대피훈련 온라인 교..</a> +  </td>
+			<td>행정실</td>
+			<td><a href="/nvboard/filedown.jsp?bodcode=edunotice&amp;filename=화재발생시 국민행동요령(소방청).pdf&amp;maskname=11758268133750"><img src="/nvboard/skin/board_notice/img/icon_folder.gif" border="0" alt="" /></a>&nbsp;</td>
+			<td class="td_eng">2025-09-19</td>
+			<td class="td_eng">468</td>
+		</tr>
+
+
+			</tbody>
+		</table>
+	</div>
+	<!-- //board_list --> 
+	<!-- board_page -->
+	<div id="board_page">
+		<div class="list_page">
+		<a href="/bbs/lstBoard.jsp?bodcode=edunotice&amp;fid=117&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=1"><img src="/img/skin/btn_first.gif" alt="처음" border="0" align="middle" /></a>&nbsp;<img src="/img/skin/btn_prev.gif" alt="이전" border="0" align="middle" /> <strong>1</strong> <a href="/bbs/lstBoard.jsp?bodcode=edunotice&amp;fid=117&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=2" class="pre" >2</a> <a href="/bbs/lstBoard.jsp?bodcode=edunotice&amp;fid=117&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=3" class="pre" >3</a> <a href="/bbs/lstBoard.jsp?bodcode=edunotice&amp;fid=117&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=4" class="pre" >4</a> <a href="/bbs/lstBoard.jsp?bodcode=edunotice&amp;fid=117&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=5" class="pre" >5</a> <a href="/bbs/lstBoard.jsp?bodcode=edunotice&amp;fid=117&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=6" class="pre" >6</a> <a href="/bbs/lstBoard.jsp?bodcode=edunotice&amp;fid=117&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=7" class="pre" >7</a> <a href="/bbs/lstBoard.jsp?bodcode=edunotice&amp;fid=117&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=8" class="pre" >8</a> <a href="/bbs/lstBoard.jsp?bodcode=edunotice&amp;fid=117&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=9" class="pre" >9</a> <a href="/bbs/lstBoard.jsp?bodcode=edunotice&amp;fid=117&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=10" class="pre" >10</a> <a href="/bbs/lstBoard.jsp?bodcode=edunotice&amp;fid=117&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=11"><img src="/img/skin/btn_next.gif" alt="다음" border="0" align="middle" /></a>&nbsp;<a href="/bbs/lstBoard.jsp?bodcode=edunotice&amp;fid=117&amp;oid=0&amp;depth=0&amp;selopt=&amp;key=&amp;page=11"><img src="/img/skin/btn_last.gif" alt="마지막" border="0" align="middle" /></a>
+		</div>
+		
+	</div>
+	<!-- //board_page --> 
+</div>
+<!-- //board -->
+
+
+<script src="/inc/script.js" type="text/javascript"></script>
+
+
+
+			</div>
+        	<!-- //contents -->
+            
+       </div>
+		<!-- //container_box -->
+	</div>
+	<!-- //container --> 
+	<!-- footer -->
+	<div id="footer">
+		<!-- 교내주요기관 바로가기 -->
+		<div class="footer_banner">
+			<h2 class="hidden">교내주요기관 바로가기</h2>
+            <ul>
+            	<li><a href="#banner01" onclick="banner01(); return false;" class="ban_left">한국교원대학교</a></li>
+            	<li><a href="#banner02" onclick="banner02(); return false;">열린총장실</a></li>
+            	<li><a href="#banner03" onclick="banner03(); return false;">도서관</a></li>
+            	<li><a href="#banner04" onclick="banner04(); return false;">대학원</a></li>
+            	<li><a href="#banner05" onclick="banner05(); return false;">청람광장</a></li>
+            	<li><a href="#banner06" onclick="banner06(); return false;">교육연구원</a></li>
+            	<li><a href="#banner07" onclick="banner07(); return false;">박물관</a></li>
+            	<li><a href="#banner08" onclick="banner08(); return false;">방송국</a></li>
+            	<li><a href="#banner09" onclick="banner09(); return false;">교수학습센터</a></li>
+            	<li><a href="#banner10" onclick="banner10(); return false;" class="ban_right">청람개발인재센터</a></li>
+            </ul>
+		</div>
+		<!-- //교내주요기관 바로가기 --> 
+		<div class="footer_box">
+			<ul class="btn_footer">
+				<li><a href="#footer01" onclick="footer01(); return false;">사도교육원소개</a></li>
+				<li><a href="#footer02" onclick="footer02(); return false;">질의응답</a></li>
+				<li><a href="#footer03" onclick="footer03(); return false;">찾아오시는길</a></li>
+				<li><a href="#footer04" onclick="footer04(); return false;"><span class="font_blue">개인정보처리방침</span></a></li>
+                <li><a href="#header" title="맨위로이동" class="btn_top">TOP^</a></li>
+			</ul>
+
+			<address>[28173] 충청북도 청주시 흥덕구 강내면 태성탑연로 250 Tel. 사도교육부 : 043.230.3322~4  행정실 : 043.230.3328(예산), 3329(시설), 3330(기숙사비)<br />Copyrightⓒ 2009 KNUE Residential Education Center Toward Best Teachers. All Rights Reserved.</address>
+            <!--<div class="foo_logo"><img src="../../img/com/foo_logo.gif" alt="한국교원대학교 사도교육원 KNUE Residential Education Center Toward Best Teachers" /></div>-->
+		</div>
+	</div>
+	<!-- //footer --> 
+</div>
+<!-- //wrap -->
+</body>
+</html>
+

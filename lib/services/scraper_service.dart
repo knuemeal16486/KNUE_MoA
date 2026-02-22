@@ -226,12 +226,34 @@ class KnueScraper {
         String relativeLink = titleEl.attributes['href'] ?? '';
         String fullLink = _resolveLink(url, relativeLink);
 
-        // 날짜 추출 (td 인덱스는 게시판마다 다를 수 있음, 여기서는 대략 4번째 또는 3번째)
         var tds = row.querySelectorAll('td');
-        String date = tds.length > 4
-            ? tds[4].text.trim()
-            : (tds.length > 3 ? tds[3].text.trim() : '');
-        String author = tds.length > 2 ? tds[2].text.trim() : '학교';
+        String date = '';
+        String author = '학교';
+
+        // 1. 날짜 추출 (정규식으로 yyyy-mm-dd 또는 yyyy.mm.dd 패턴 찾기)
+        final dateRegex = RegExp(r'\d{2,4}[-.]\d{2}[-.]\d{2}');
+        for (var td in tds) {
+          final match = dateRegex.firstMatch(td.text.trim());
+          if (match != null) {
+            date = match.group(0)!.replaceAll('-', '.');
+            break;
+          }
+        }
+
+        // 정규식으로 못 찾은 경우 기존 방식 활용
+        if (date.isEmpty && tds.length > 2) {
+          date = tds.length > 4 ? tds[4].text.trim() : tds[2].text.trim();
+          date = date.replaceAll('-', '.');
+        }
+
+        // 2. 작성자 추출 (날짜나 숫자가 아닌 텍스트를 가진 td를 찾음)
+        if (tds.length > 2) {
+          String tempAuthor = tds[2].text.trim();
+          // date와 같거나 숫자가 많이 포함되어 있으면 작성자가 아닐 확률이 높으므로 '학교'로 처리
+          if (tempAuthor != date && !RegExp(r'\d{4}').hasMatch(tempAuthor)) {
+            author = tempAuthor;
+          }
+        }
 
         // ID 생성 (게시판 URL + 제목 + 날짜)로 고유성 확보
         int id = _generateId(group, category, title, date, fullLink);

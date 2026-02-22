@@ -6,12 +6,14 @@ import 'package:knue_moa/models/notice_model.dart';
 import 'package:knue_moa/providers/providers.dart';
 import 'package:knue_moa/screens/home_page.dart';
 import 'package:knue_moa/services/scraper_service.dart';
+import 'package:knue_moa/models/application_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
   Hive.registerAdapter(NoticeAdapter());
+  Hive.registerAdapter(ApplicationFormAdapter());
   await Hive.openBox<Notice>(KnueScraper.noticeBoxName);
 
   runApp(const ProviderScope(child: KnueMoaApp()));
