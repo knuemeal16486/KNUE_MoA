@@ -9,7 +9,13 @@ workflows:
     
     environment:
       flutter: stable
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.knue.knuemoa
     scripts:
+      - name: Code signing check
+        script: |
+          echo "Using automatic code signing from Codemagic UI configuration"
       - name: Get Flutter packages
         script: |
           flutter packages pub get
