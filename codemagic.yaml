@@ -15,8 +15,9 @@ workflows:
         bundle_identifier: com.knue.knuemoa 
         
     scripts:
-      - name: Set up code signing settings on macOS builder
+      - name: Create or fetch provisioning profiles
         script: |
+          app-store-connect fetch-signing-files "com.knue.knuemoa" --type IOS_APP_STORE --create
           xcode-project use-profiles
           
       - name: Get Flutter packages
