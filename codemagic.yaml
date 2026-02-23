@@ -9,10 +9,15 @@ workflows:
     
     environment:
       flutter: stable
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.knue.knuemoa
     scripts:
+      - name: iOS Automatic Code Signing Generation
+        script: |
+          app-store-connect fetch-signing-files "com.knue.knuemoa" \
+            --type IOS_APP_STORE \
+            --create
+      - name: Configure Xcode Project settings
+        script: |
+          xcode-project use-profiles
       - name: Code signing check
         script: |
           echo "Using automatic code signing from Codemagic UI configuration"
