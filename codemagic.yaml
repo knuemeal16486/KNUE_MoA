@@ -10,8 +10,8 @@ workflows:
     environment:
       flutter: stable
       ios_signing:
-        provisioning_profiles:
-          - profile_name: KNUE_MoA_App_Store_Profile
+        distribution_type: app_store
+        bundle_identifier: com.knue.knuemoa
     scripts:
       - name: Code signing check
         script: |
