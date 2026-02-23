@@ -9,11 +9,6 @@ workflows:
     
     environment:
       flutter: stable # 플러터 최신 안정화 버전 사용
-      ios_signing:
-        distribution_type: app_store
-        # ★여기에 아까 애플 개발자 센터에서 만든 KNUE MoA의 진짜 번들 ID를 넣어줘! (예: com.yourname.knuemoa)
-        bundle_identifier: com.knue.knuemoa 
-        
     scripts:
       - name: Create or fetch provisioning profiles
         script: |
