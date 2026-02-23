@@ -8,7 +8,10 @@ workflows:
       app_store_connect: "KNUE KIM"
     
     environment:
-      flutter: stable # 플러터 최신 안정화 버전 사용
+      flutter: stable
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.knue.knuemoa
     scripts:
       - name: Create or fetch provisioning profiles
         script: |
