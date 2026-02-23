@@ -4,6 +4,9 @@ workflows:
     # iOS 빌드를 위해 코드매직의 Mac 환경(M2)을 사용
     instance_type: mac_mini_m2 
     
+    integrations:
+      app_store_connect: Codemagic # 혹은 Codemagic UI 내에서 설정한 App Store Connect key 연결 이름
+    
     environment:
       flutter: stable # 플러터 최신 안정화 버전 사용
       ios_signing:
