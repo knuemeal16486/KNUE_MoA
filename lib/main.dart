@@ -13,7 +13,7 @@ import 'package:home_widget/home_widget.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.init();
-  await HomeWidget.setAppGroupId('group.com.example.knue_moa');
+  await HomeWidget.setAppGroupId('group.com.knue.knuemoa');
 
   await Hive.initFlutter();
   Hive.registerAdapter(NoticeAdapter());

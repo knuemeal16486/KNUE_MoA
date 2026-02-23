@@ -8,7 +8,7 @@
 PRODUCT_NAME = knue_moa
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.knueMoa
+PRODUCT_BUNDLE_IDENTIFIER = com.knue.knuemoa
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.

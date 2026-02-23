@@ -1,4 +1,4 @@
-package com.knuemoa.app
+package com.knue.knuemoa
 
 import io.flutter.embedding.android.FlutterActivity
 
