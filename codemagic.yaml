@@ -10,8 +10,6 @@ workflows:
     environment:
       flutter: stable
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.knue.knuemoa
         provisioning_profiles:
           - profile_name: KNUE_MoA_App_Store_Profile
     scripts:
