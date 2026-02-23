@@ -11,6 +11,15 @@ import 'package:home_widget/home_widget.dart';
 import 'dart:async';
 import 'dart:convert';
 
+// === 공통 의존성 (싱글톤·재사용) ===
+/// SharedPreferences 단일 인스턴스 — 모든 설정/캐시 저장소가 이 프로바이더를 통해 접근하면 일관성 유지
+final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) {
+  return SharedPreferences.getInstance();
+});
+
+/// 스크래퍼 서비스 단일 인스턴스 — 공지/달력 등에서 동일 인스턴스 재사용으로 메모리·일관성 최적화
+final scraperProvider = Provider<KnueScraper>((ref) => KnueScraper());
+
 // === 테마 색상 관련 ===
 final themeColorProvider = StateNotifierProvider<ThemeColorNotifier, Color>((
   ref,
@@ -87,12 +96,7 @@ class ReadNoticesNotifier extends StateNotifier<List<int>> {
   }
 }
 
-// === 키워드 관련 ===
-final keywordsProvider = FutureProvider<List<String>>((ref) async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getStringList('keywords') ?? ['장학', '수강', '졸업'];
-});
-
+// === 키워드 관련 (단일 소스: Notifier만 사용) ===
 final keywordsNotifierProvider =
     StateNotifierProvider<KeywordsNotifier, List<String>>((ref) {
       return KeywordsNotifier();
@@ -123,13 +127,7 @@ class KeywordsNotifier extends StateNotifier<List<String>> {
   }
 }
 
-// === 게시글 즐겨찾기 ===
-final favoritesProvider = FutureProvider<List<int>>((ref) async {
-  final prefs = await SharedPreferences.getInstance();
-  final strings = prefs.getStringList('favorites') ?? [];
-  return strings.map(int.parse).toList();
-});
-
+// === 게시글 즐겨찾기 (단일 소스: Notifier만 사용) ===
 final favoritesNotifierProvider =
     StateNotifierProvider<FavoritesNotifier, List<int>>((ref) {
       return FavoritesNotifier();
@@ -422,7 +420,7 @@ class AlarmNotifier extends StateNotifier<bool> {
 class NoticesNotifier extends AsyncNotifier<List<Notice>> {
   @override
   Future<List<Notice>> build() async {
-    final scraper = KnueScraper();
+    final scraper = ref.read(scraperProvider);
     // 초기 로딩 (캐시가 있으면 즉시 반환, 없으면 웹에서 로딩)
     final notices = await scraper.fetchAllNotices(forceRefresh: false);
 
@@ -434,8 +432,7 @@ class NoticesNotifier extends AsyncNotifier<List<Notice>> {
 
   Future<void> _backgroundUpdate() async {
     try {
-      final scraper = KnueScraper();
-      // forceRefresh: true로 강제로 최신 데이터를 가져옴
+      final scraper = ref.read(scraperProvider);
       final latestNotices = await scraper.fetchAllNotices(forceRefresh: true);
       // 상태를 업데이트하면 Riverpod이 자동으로 UI를 다시 그림
       state = AsyncData(latestNotices);
@@ -447,8 +444,8 @@ class NoticesNotifier extends AsyncNotifier<List<Notice>> {
 
   // 사용자가 명시적으로 스와이프해서 새로고침할 때 호출
   Future<List<Notice>> refresh() async {
-    state = const AsyncLoading(); // 로딩 UI 표시
-    final scraper = KnueScraper();
+    state = const AsyncLoading();
+    final scraper = ref.read(scraperProvider);
     final notices = await scraper.fetchAllNotices(forceRefresh: true);
     state = AsyncData(notices);
     _updateWidget(notices);
@@ -492,8 +489,8 @@ final calendarProvider = FutureProvider.family<List<CalendarEvent>, DateTime>((
   ref,
   date,
 ) async {
-  final scraper = KnueScraper();
-  return await scraper.fetchCalendarEvents(date.year, date.month);
+  final scraper = ref.read(scraperProvider);
+  return scraper.fetchCalendarEvents(date.year, date.month);
 });
 // === 홈 위젯 설정 (표시할 게시판 선택) ===
 final widgetBoardsProvider =

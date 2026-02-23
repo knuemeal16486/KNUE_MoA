@@ -13,8 +13,6 @@ import 'package:home_widget/home_widget.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.init();
-
-  // iOS 홈 위젯 연동을 위한 App Group ID 설정
   await HomeWidget.setAppGroupId('group.com.example.knue_moa');
 
   await Hive.initFlutter();
@@ -22,6 +20,7 @@ void main() async {
   Hive.registerAdapter(ApplicationFormAdapter());
   await Hive.openBox<Notice>(KnueScraper.noticeBoxName);
 
+  // Riverpod: ProviderScope를 루트로 두어 전역 상태·의존성 주입 제공
   runApp(const ProviderScope(child: KnueMoaApp()));
 }
 
@@ -30,6 +29,7 @@ class KnueMoaApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 테마만 변경될 때만 리빌드되도록 watch
     final primaryColor = ref.watch(themeColorProvider);
     final themeMode = ref.watch(themeModeProvider);
 

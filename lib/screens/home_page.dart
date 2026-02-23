@@ -251,13 +251,14 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       },
       child: ListView(
         padding: const EdgeInsets.only(bottom: 40),
+        cacheExtent: 400,
         children: [
-          _buildKeywordCard(themeData),
-          const AiBanner(),
-          _buildFolderSystem(themeData),
-          _buildNoticeList(themeData),
-          _buildRecentNoticesHighlight(themeData),
-          _buildCalendar(themeData),
+          RepaintBoundary(child: _buildKeywordCard(themeData)),
+          const RepaintBoundary(child: AiBanner()),
+          RepaintBoundary(child: _buildFolderSystem(themeData)),
+          RepaintBoundary(child: _buildNoticeList(themeData)),
+          RepaintBoundary(child: _buildRecentNoticesHighlight(themeData)),
+          RepaintBoundary(child: _buildCalendar(themeData)),
         ],
       ),
     );
@@ -482,8 +483,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   }
 
   Widget _buildKeywordCard(Map<String, dynamic> theme) {
-    final keywordsAsync = ref.watch(keywordsProvider);
-    final keywords = keywordsAsync.value ?? [];
+    final keywords = ref.watch(keywordsNotifierProvider);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: const EdgeInsets.all(20),
@@ -793,7 +793,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
   Widget _buildBoardSelector(Map<String, dynamic> theme) {
     final primary = theme['primary'] as Color;
-    final scraper = KnueScraper();
+    final scraper = ref.read(scraperProvider);
 
     if (_selectedGroup == 'MY') return const SizedBox(height: 12);
 
@@ -900,8 +900,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
       if (defaultBoards.isEmpty) return const SizedBox(height: 12);
 
+      ref.watch(boardOrderProvider); // 게시판 순서 변경 시 리빌드
       final currentOrder = ref
-          .watch(boardOrderProvider.notifier)
+          .read(boardOrderProvider.notifier)
           .getOrder(_selectedGroup, defaultBoards);
 
       return Container(
@@ -978,7 +979,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     bool showDragHint = false,
     VoidCallback? onSelected,
   }) {
-    final isFav = ref.watch(boardFavoritesProvider).contains(boardName);
+    final isFav = ref.watch(
+      boardFavoritesProvider.select((list) => list.contains(boardName)),
+    );
     final isAll = boardName == 'ALL' || boardName == '전체';
 
     return GestureDetector(
@@ -1820,8 +1823,8 @@ class SettingsTab extends ConsumerWidget {
                       _buildInfoTile(
                         icon: LucideIcons.user,
                         title: '개발자 정보',
-                        subtitle: '한국교원대학교 예비교사',
-                        color: Colors.purple,
+                        subtitle: 'knuemeal16486@gmail.com',
+                        color: Colors.purple,  
                         onTap: () {
                           Navigator.push(
                             context,

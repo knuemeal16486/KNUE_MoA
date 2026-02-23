@@ -17,22 +17,30 @@ class NoticeCard extends ConsumerWidget {
     return HSLColor.fromAHSL(1.0, hue, 0.6, 0.6).toColor();
   }
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final keywords = ref.watch(keywordsProvider).value ?? [];
-
-    final cleanTitle = notice.title
+  static String _cleanTitle(String title) {
+    return title
         .replaceAll('새글', '')
         .replaceAll('[새글]', '')
         .replaceAll('(새글)', '')
         .trim();
+  }
 
-    final isMatched = keywords.any((k) => cleanTitle.contains(k));
-    final favorites = ref.watch(favoritesNotifierProvider);
-    final isFav = favorites.contains(notice.id);
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 필요한 값만 구독해 리빌드 범위 최소화 (스크롤 시 응답 없음 방지)
+    final isMatched = ref.watch(
+      keywordsNotifierProvider.select(
+        (list) => list.any((k) => _cleanTitle(notice.title).contains(k)),
+      ),
+    );
+    final isFav = ref.watch(
+      favoritesNotifierProvider.select((list) => list.contains(notice.id)),
+    );
+    final isRead = ref.watch(
+      readNoticesProvider.select((list) => list.contains(notice.id)),
+    );
 
-    final readList = ref.watch(readNoticesProvider);
-    final isRead = readList.contains(notice.id);
+    final cleanTitle = _cleanTitle(notice.title);
 
     // [Red Dot] 새 글이고, 아직 읽지 않았을 때 표시
     final showRedDot = notice.isNew && !isRead;

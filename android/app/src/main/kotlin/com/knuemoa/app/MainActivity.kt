@@ -1,4 +1,4 @@
-package com.example.knue_moa
+package com.knuemoa.app
 
 import io.flutter.embedding.android.FlutterActivity
 
