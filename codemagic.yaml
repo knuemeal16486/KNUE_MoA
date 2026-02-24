@@ -22,7 +22,7 @@ workflows:
           
       - name: Build IPA for App Store
         script: |
-          flutter build ipa --release
+          flutter build ipa --release --export-options-plist=$HOME/export_options.plist
           
     artifacts:
       - build/ios/ipa/*.ipa # 완성된 앱 설치 파일
