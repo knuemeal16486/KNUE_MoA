@@ -23,6 +23,7 @@ void main() async {
       if (titleEl == null) continue;
       String title = titleEl.text.trim();
 
+
       var tds = row.querySelectorAll('td');
       String date = '';
       final dateRegex = RegExp(r'\d{2,4}[-.]\d{2}[-.]\d{2}');
