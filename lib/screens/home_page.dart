@@ -177,6 +177,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   String _selectedGroup = 'MAIN';
   String _selectedCollege = '제1대학';
   String _selectedDept = 'ALL';
+  String _selectedAnnexGroup = '도서관';
   String _selectedBoard = 'ALL';
   int _noticeDisplayLimit = 10;
   bool _isInputVisible = false;
@@ -742,6 +743,10 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                       _selectedCollege = '제1대학';
                       _selectedDept = 'ALL';
                     }
+                    if (groupKey == 'ANNEX') {
+                      _selectedAnnexGroup = '도서관';
+                      _selectedBoard = 'ALL';
+                    }
                   }),
                   child: Container(
                     width: 75,
@@ -893,9 +898,89 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         defaultBoards = scraper.boardGroups['MAIN']?.keys.toList() ?? [];
       else if (_selectedGroup == 'LIFE')
         defaultBoards = scraper.boardGroups['LIFE']?.keys.toList() ?? [];
-      else if (_selectedGroup == 'ANNEX')
-        defaultBoards = scraper.boardGroups['ANNEX']?.keys.toList() ?? [];
-      else if (_selectedGroup == 'GRAD')
+      else if (_selectedGroup == 'ANNEX') {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 40,
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: KnueScraper.annexStructure.keys.map((annex) {
+                  final selected = _selectedAnnexGroup == annex;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(annex),
+                      selected: selected,
+                      onSelected: (s) => setState(() {
+                        _selectedAnnexGroup = annex;
+                        _selectedBoard = 'ALL';
+                        _noticeDisplayLimit = 10;
+                      }),
+                      selectedColor: primary.withOpacity(0.2),
+                      backgroundColor: Theme.of(context).cardColor,
+                      labelStyle: TextStyle(
+                        color: selected ? primary : Colors.grey.shade700,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide.none,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            Container(
+              height: 40,
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _buildBoardChip(
+                      'ALL',
+                      _selectedBoard == 'ALL',
+                      primary,
+                      onSelected: () => setState(() {
+                        _selectedBoard = 'ALL';
+                        _noticeDisplayLimit = 10;
+                      }),
+                    ),
+                  ),
+                  ...(KnueScraper.annexStructure[_selectedAnnexGroup] ?? [])
+                      .map((board) {
+                        final selected = _selectedBoard == board;
+                        final displayName = board.contains('_')
+                            ? board.split('_')[1]
+                            : board;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: _buildBoardChip(
+                            board,
+                            selected,
+                            primary,
+                            label: displayName,
+                            onSelected: () => setState(() {
+                              _selectedBoard = board;
+                              _noticeDisplayLimit = 10;
+                            }),
+                          ),
+                        );
+                      }),
+                ],
+              ),
+            ),
+          ],
+        );
+      } else if (_selectedGroup == 'GRAD')
         defaultBoards = scraper.boardGroups['GRAD']?.keys.toList() ?? [];
 
       if (defaultBoards.isEmpty) return const SizedBox(height: 12);
@@ -975,6 +1060,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     String boardName,
     bool selected,
     Color primary, {
+    String? label,
     bool isRemovable = false,
     bool showDragHint = false,
     VoidCallback? onSelected,
@@ -983,6 +1069,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       boardFavoritesProvider.select((list) => list.contains(boardName)),
     );
     final isAll = boardName == 'ALL' || boardName == '전체';
+    final displayText = label ?? (isAll ? '전체보기' : boardName);
 
     return GestureDetector(
       onTap: () {
@@ -1015,7 +1102,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        isFav ? '$boardName 즐겨찾기 해제' : '$boardName 즐겨찾기 추가',
+                        isFav ? '$displayText 즐겨찾기 해제' : '$displayText 즐겨찾기 추가',
                       ),
                       duration: const Duration(milliseconds: 1000),
                     ),
@@ -1031,7 +1118,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 ),
               ),
             Text(
-              isAll ? '전체보기' : boardName,
+              displayText,
               style: TextStyle(
                 color: selected ? primary : Colors.grey.shade700,
                 fontWeight: selected ? FontWeight.bold : FontWeight.w500,
@@ -1149,6 +1236,13 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             if (!targetDepts.contains(n.category)) return false;
             // DEPT group uses its own scraper logic, but notices list relies on 'category'.
             if (_selectedDept != 'ALL') return n.category == _selectedDept;
+            return true;
+          } else if (_selectedGroup == 'ANNEX') {
+            if (n.group != 'ANNEX') return false;
+            final targetBoards =
+                KnueScraper.annexStructure[_selectedAnnexGroup] ?? [];
+            if (!targetBoards.contains(n.category)) return false;
+            if (_selectedBoard != 'ALL') return n.category == _selectedBoard;
             return true;
           } else {
             if (n.group != _selectedGroup) return false;
@@ -1824,7 +1918,7 @@ class SettingsTab extends ConsumerWidget {
                         icon: LucideIcons.user,
                         title: '개발자 정보',
                         subtitle: 'knuemeal16486@gmail.com',
-                        color: Colors.purple,  
+                        color: Colors.purple,
                         onTap: () {
                           Navigator.push(
                             context,

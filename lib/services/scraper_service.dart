@@ -52,7 +52,9 @@ class KnueScraper {
       '신문방송사':
           'https://m.news.knue.ac.kr/news/articleList.html?sc_section_code=S1N3',
       // 사도교육원
-      '사도교육원': 'http://rec.knue.ac.kr/bbs/lstBoard.jsp?bodcode=edunotice',
+      '사도_일반공지': 'http://rec.knue.ac.kr/bbs/lstBoard.jsp?bodcode=edunotice',
+      '사도_학부/대학원': 'http://rec.knue.ac.kr/bbs/lstBoard.jsp?bodcode=notice',
+      '사도_교육대학원': 'http://rec.knue.ac.kr/bbs/lstBoard.jsp?bodcode=boardt',
     },
     'LIFE': {
       '학생지원':
@@ -153,6 +155,13 @@ class KnueScraper {
       '컴퓨터교육과',
     ],
     '제4대학': ['음악교육과', '미술교육과', '체육교육과'],
+  };
+
+  static const Map<String, List<String>> annexStructure = {
+    '도서관': ['도서관일반', '도서관학술'],
+    '연수원': ['종합연수원', '영유아연수원'],
+    '신문방송사': ['신문방송사'],
+    '사도교육원': ['사도_일반공지', '사도_학부/대학원', '사도_교육대학원'],
   };
   // Hive 박스 이름
   static const String noticeBoxName = 'notices';
