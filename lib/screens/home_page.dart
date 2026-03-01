@@ -1463,7 +1463,7 @@ class _AiBannerState extends ConsumerState<AiBanner> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'AI 맞춤 추천 (Gemini) ✨',
+                        'AI 추천 공지 ✨',
                         style: TextStyle(
                           color: Colors.white70,
                           fontSize: 11,

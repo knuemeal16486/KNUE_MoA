@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
@@ -453,6 +454,9 @@ class NoticesNotifier extends AsyncNotifier<List<Notice>> {
   }
 
   Future<void> _updateWidget(List<Notice> notices) async {
+    // home_widget은 Android / iOS 전용
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+
     if (notices.isEmpty) return;
 
     final prefs = await SharedPreferences.getInstance();

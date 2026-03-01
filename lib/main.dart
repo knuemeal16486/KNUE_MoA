@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -13,7 +14,11 @@ import 'package:home_widget/home_widget.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.init();
-  await HomeWidget.setAppGroupId('group.com.knue.knuemoa');
+
+  // home_widget은 Android / iOS 전용 (Windows에서는 스킵)
+  if (Platform.isAndroid || Platform.isIOS) {
+    await HomeWidget.setAppGroupId('group.com.knue.knuemoa');
+  }
 
   await Hive.initFlutter();
   Hive.registerAdapter(NoticeAdapter());
