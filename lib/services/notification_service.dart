@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:knue_moa/services/scraper_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:knue_moa/models/notice_model.dart';
+import 'package:knue_moa/models/personal_schedule_model.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -15,109 +16,211 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    if (task != 'check_new_notices_task') return Future.value(true);
-
-    try {
-      // 백그라운드 격리 환경에서는 Hive를 별도로 초기화해야 함
-      await Hive.initFlutter();
-      if (!Hive.isAdapterRegistered(0)) {
-        Hive.registerAdapter(NoticeAdapter());
-      }
-
-      final prefs = await SharedPreferences.getInstance();
-
-      // 알림 설정 확인
-      final isAlarmOn = prefs.getBool('alarm_on') ?? true;
-      if (!isAlarmOn) return Future.value(true);
-
-      // 공지사항 새로 가져오기
-      final scraper = KnueScraper();
-      final notices = await scraper.fetchAllNotices(forceRefresh: true);
-      if (notices.isEmpty) return Future.value(true);
-
-      // 첫 실행 여부 확인
-      final bool initialized =
-          prefs.getBool('notification_initialized') ?? false;
-
-      if (!initialized) {
-        // 첫 실행: 현재 최신 글 ID를 기준선으로 저장하고 알림은 보내지 않음
-        final currentIds = notices
-            .take(50)
-            .map((n) => n.id.toString())
-            .toList();
-        await prefs.setStringList('notified_ids', currentIds);
-        await prefs.setBool('notification_initialized', true);
-        return Future.value(true);
-      }
-
-      // 즐겨찾기 게시판 · 키워드 로드
-      final favBoards = prefs.getStringList('fav_boards') ?? [];
-      final keywords = prefs.getStringList('keywords') ?? [];
-      final List<String> notifiedIds =
-          prefs.getStringList('notified_ids') ?? [];
-
-      // ── 새 글 탐지 ──
-      final List<Map<String, String>> newItems = [];
-      final List<String> newNotifiedIds = List.from(notifiedIds);
-
-      for (final notice in notices.take(50)) {
-        final idStr = notice.id.toString();
-
-        // 이미 알림 보낸 글이면 스킵
-        if (notifiedIds.contains(idStr)) continue;
-
-        // 즐겨찾기 게시판 필터: 비어 있으면 전체, 있으면 해당 게시판만
-        final inFav = favBoards.isEmpty || favBoards.contains(notice.category);
-
-        // ID는 항상 기록 (알림 여부와 무관하게 중복 방지)
-        newNotifiedIds.add(idStr);
-
-        if (!inFav) continue;
-
-        // 키워드 필터: 키워드가 없으면 전부, 있으면 제목에 포함된 것만
-        final matchesKeyword =
-            keywords.isEmpty ||
-            keywords.any(
-              (kw) => notice.title.toLowerCase().contains(kw.toLowerCase()),
-            );
-
-        if (matchesKeyword) {
-          newItems.add({'category': notice.category, 'title': notice.title});
+    if (task == 'check_new_notices_task') {
+      try {
+        // 백그라운드 격리 환경에서는 Hive를 별도로 초기화해야 함
+        await Hive.initFlutter();
+        if (!Hive.isAdapterRegistered(0)) {
+          Hive.registerAdapter(NoticeAdapter());
         }
-      }
-
-      // ── 알림 발송 ──
-      if (newItems.isNotEmpty) {
-        // 백그라운드 격리 환경에서도 로컬 알림 플러그인 재초기화
-        await _initPlugin();
-
-        if (newItems.length == 1) {
-          await NotificationService.showNotification(
-            title: '[${newItems[0]['category']}] 새 공지사항',
-            body: newItems[0]['title']!,
-          );
-        } else {
-          final first = newItems[0];
-          final rest = newItems.length - 1;
-          await NotificationService.showNotification(
-            title: '새 공지사항 ${newItems.length}건',
-            body: '[${first['category']}] ${first['title']} 외 $rest건',
-          );
+        if (!Hive.isAdapterRegistered(3)) {
+          Hive.registerAdapter(PersonalScheduleAdapter());
         }
-      }
 
-      // ── notified_ids 최대 100개로 유지 (오래된 것부터 삭제) ──
-      final trimmed = newNotifiedIds.length > 100
-          ? newNotifiedIds.sublist(newNotifiedIds.length - 100)
-          : newNotifiedIds;
-      await prefs.setStringList('notified_ids', trimmed);
-    } catch (e) {
-      // ignore: avoid_print
-      print('Background task error: $e');
+        final prefs = await SharedPreferences.getInstance();
+
+        // 알림 설정 확인
+        final isAlarmOn = prefs.getBool('alarm_on') ?? true;
+        if (isAlarmOn) {
+          final notices = await KnueScraper().fetchAllNotices(
+            forceRefresh: true,
+          );
+          if (notices.isNotEmpty) {
+            final bool initialized =
+                prefs.getBool('notification_initialized') ?? false;
+
+            if (!initialized) {
+              final currentIds = notices
+                  .take(50)
+                  .map((n) => n.id.toString())
+                  .toList();
+              await prefs.setStringList('notified_ids', currentIds);
+              await prefs.setBool('notification_initialized', true);
+            } else {
+              final favBoards = prefs.getStringList('fav_boards') ?? [];
+              final keywords = prefs.getStringList('keywords') ?? [];
+              final List<String> notifiedIds =
+                  prefs.getStringList('notified_ids') ?? [];
+
+              final List<Map<String, String>> newItems = [];
+              final List<String> newNotifiedIds = List.from(notifiedIds);
+
+              for (final notice in notices.take(50)) {
+                final idStr = notice.id.toString();
+                if (notifiedIds.contains(idStr)) continue;
+                final inFav =
+                    favBoards.isEmpty || favBoards.contains(notice.category);
+                newNotifiedIds.add(idStr);
+                if (!inFav) continue;
+                final matchesKeyword =
+                    keywords.isEmpty ||
+                    keywords.any(
+                      (kw) =>
+                          notice.title.toLowerCase().contains(kw.toLowerCase()),
+                    );
+                if (matchesKeyword) {
+                  newItems.add({
+                    'category': notice.category,
+                    'title': notice.title,
+                  });
+                }
+              }
+
+              if (newItems.isNotEmpty) {
+                await _initPlugin();
+                if (newItems.length == 1) {
+                  await NotificationService.showNotification(
+                    title: '[${newItems[0]['category']}] 새 공지사항',
+                    body: newItems[0]['title']!,
+                    channelId: 'knue_moa_notice_channel',
+                    channelName: '공지사항 알림',
+                  );
+                } else {
+                  final first = newItems[0];
+                  await NotificationService.showNotification(
+                    title: '새 공지사항 ${newItems.length}건',
+                    body:
+                        '[${first['category']}] ${first['title']} 외 ${newItems.length - 1}건',
+                    channelId: 'knue_moa_notice_channel',
+                    channelName: '공지사항 알림',
+                  );
+                }
+              }
+
+              final trimmed = newNotifiedIds.length > 100
+                  ? newNotifiedIds.sublist(newNotifiedIds.length - 100)
+                  : newNotifiedIds;
+              await prefs.setStringList('notified_ids', trimmed);
+            }
+          }
+        }
+
+        // ── 달력 알림 체크 ──
+        await _checkCalendarNotifications();
+      } catch (e) {
+        // ignore: avoid_print
+        print('Background task error (notices): $e');
+      }
     }
 
     return Future.value(true);
   });
+}
+
+/// 달력 알림 체크 (학사일정 + 개인일정)
+Future<void> _checkCalendarNotifications() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // ── 학사일정 알림 ──
+    final academicAlarmOn = prefs.getBool('academic_alarm_on') ?? true;
+    if (academicAlarmOn) {
+      final alarmDays = prefs.getInt('academic_alarm_days') ?? 1;
+      final targetDate = today.add(Duration(days: alarmDays));
+
+      final scraper = KnueScraper();
+      final events = await scraper.fetchCalendarEvents(
+        targetDate.year,
+        targetDate.month,
+      );
+
+      // 이미 알린 학사일정 ID 목록
+      final notifiedAcademic = prefs.getStringList('notified_academic') ?? [];
+      final newNotifiedAcademic = List<String>.from(notifiedAcademic);
+
+      for (final event in events) {
+        final eventStart = DateTime(
+          event.startDate.year,
+          event.startDate.month,
+          event.startDate.day,
+        );
+        if (!eventStart.isAtSameMomentAs(targetDate)) continue;
+
+        final eventId = '${event.title}_${event.startDate.toIso8601String()}';
+        if (notifiedAcademic.contains(eventId)) continue;
+
+        await _initPlugin();
+        await NotificationService.showNotification(
+          title: '📅 학사일정 알림 (${alarmDays}일 후)',
+          body: event.title,
+          channelId: 'knue_moa_calendar_channel',
+          channelName: '학사일정 알림',
+        );
+        newNotifiedAcademic.add(eventId);
+      }
+
+      // 알림 기록 최대 200개 유지
+      final trimmedAcademic = newNotifiedAcademic.length > 200
+          ? newNotifiedAcademic.sublist(newNotifiedAcademic.length - 200)
+          : newNotifiedAcademic;
+      await prefs.setStringList('notified_academic', trimmedAcademic);
+    }
+
+    // ── 개인 일정 알림 ──
+    final personalAlarmOn = prefs.getBool('personal_alarm_on') ?? true;
+    if (personalAlarmOn) {
+      if (!Hive.isAdapterRegistered(2)) {
+        Hive.registerAdapter(PersonalScheduleAdapter());
+      }
+      const boxName = 'personal_schedules';
+      final box = Hive.isBoxOpen(boxName)
+          ? Hive.box<PersonalSchedule>(boxName)
+          : await Hive.openBox<PersonalSchedule>(boxName);
+
+      final notifiedPersonal = prefs.getStringList('notified_personal') ?? [];
+      final newNotifiedPersonal = List<String>.from(notifiedPersonal);
+
+      for (final schedule in box.values) {
+        if (!schedule.notifyBefore) continue;
+
+        final notifyAt = schedule.startDate.subtract(
+          Duration(minutes: schedule.notifyMinutesBefore),
+        );
+        final notifyDay = DateTime(notifyAt.year, notifyAt.month, notifyAt.day);
+
+        if (!notifyDay.isAtSameMomentAs(today)) continue;
+
+        final scheduleId = '${schedule.id}_notify';
+        if (notifiedPersonal.contains(scheduleId)) continue;
+
+        await _initPlugin();
+        final minutesBefore = schedule.notifyMinutesBefore;
+        final timeLabel = minutesBefore >= 1440
+            ? '${minutesBefore ~/ 1440}일 전'
+            : minutesBefore >= 60
+            ? '${minutesBefore ~/ 60}시간 전'
+            : '${minutesBefore}분 전';
+        await NotificationService.showNotification(
+          title: '🗓️ 개인 일정 알림 ($timeLabel)',
+          body: schedule.title,
+          channelId: 'knue_moa_personal_channel',
+          channelName: '개인 일정 알림',
+        );
+        newNotifiedPersonal.add(scheduleId);
+      }
+
+      final trimmedPersonal = newNotifiedPersonal.length > 200
+          ? newNotifiedPersonal.sublist(newNotifiedPersonal.length - 200)
+          : newNotifiedPersonal;
+      await prefs.setStringList('notified_personal', trimmedPersonal);
+    }
+  } catch (e) {
+    // ignore: avoid_print
+    print('Calendar notification error: $e');
+  }
 }
 
 /// 플러그인 초기화 헬퍼 (포어그라운드 & 백그라운드 공용)
@@ -194,37 +297,37 @@ class NotificationService {
     }
   }
 
-  /// 로컬 푸시 알림 표시
+  /// 알림 채널별 showNotification 범용 메서드
   static Future<void> showNotification({
     required String title,
     required String body,
+    String channelId = 'knue_moa_notice_channel',
+    String channelName = '공지사항 알림',
+    String channelDesc = '새로운 알림을 알려드립니다.',
   }) async {
-    // Android 채널 설정
-    const AndroidNotificationDetails androidDetails =
+    final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
-          'knue_moa_notice_channel',
-          '공지사항 알림',
-          channelDescription: '새로운 공지사항을 알려드립니다.',
+          channelId,
+          channelName,
+          channelDescription: channelDesc,
           importance: Importance.max,
           priority: Priority.high,
-          ticker: '새 공지사항',
+          ticker: title,
           playSound: true,
           enableVibration: true,
         );
 
-    // iOS 알림 설정 (이전 코드에서 누락 → iOS에서 알림이 표시되지 않던 원인)
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
     );
 
-    const NotificationDetails platformDetails = NotificationDetails(
+    final NotificationDetails platformDetails = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
 
-    // 알림 ID: 시간 기반으로 고유하게 생성 (같은 ID를 쓰면 이전 알림이 덮어써짐)
     final notifId = DateTime.now().millisecondsSinceEpoch ~/ 1000 & 0x7FFFFFFF;
 
     await flutterLocalNotificationsPlugin.show(

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:knue_moa/constants/theme_constants.dart';
 import 'package:knue_moa/models/notice_model.dart';
+import 'package:knue_moa/models/personal_schedule_model.dart';
 import 'package:knue_moa/providers/providers.dart';
 import 'package:knue_moa/screens/home_page.dart';
 import 'package:knue_moa/services/scraper_service.dart';
@@ -23,7 +24,9 @@ void main() async {
   await Hive.initFlutter();
   Hive.registerAdapter(NoticeAdapter());
   Hive.registerAdapter(ApplicationFormAdapter());
+  Hive.registerAdapter(PersonalScheduleAdapter());
   await Hive.openBox<Notice>(KnueScraper.noticeBoxName);
+  await Hive.openBox<PersonalSchedule>(PersonalScheduleNotifier.boxName);
 
   // Riverpod: ProviderScope를 루트로 두어 전역 상태·의존성 주입 제공
   runApp(const ProviderScope(child: KnueMoaApp()));

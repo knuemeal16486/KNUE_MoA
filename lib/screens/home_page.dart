@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:knue_moa/constants/theme_constants.dart';
+import 'package:knue_moa/models/personal_schedule_model.dart';
 import 'package:knue_moa/providers/providers.dart';
 import 'package:knue_moa/services/scraper_service.dart';
 import 'package:knue_moa/widgets/notice_card.dart';
@@ -12,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:knue_moa/screens/application_manage_page.dart';
 import 'package:knue_moa/screens/developer_info_page.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:uuid/uuid.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -267,10 +270,47 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
   Widget _buildCalendar(Map<String, dynamic> theme) {
     final primary = theme['primary'] as Color;
-    // We only fetch based on focused day
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final asyncEvents = ref.watch(
       calendarProvider(DateTime(_focusedDay.year, _focusedDay.month)),
     );
+    final personalSchedules = ref.watch(personalScheduleProvider);
+
+    // 날짜별 이벤트 로더 (학사일정 + 개인일정 통합)
+    List<dynamic> _eventsForDay(DateTime day) {
+      final qDay = DateTime(day.year, day.month, day.day);
+      final academic = (asyncEvents.value ?? []).where((e) {
+        final s = DateTime(
+          e.startDate.year,
+          e.startDate.month,
+          e.startDate.day,
+        );
+        final end = DateTime(e.endDate.year, e.endDate.month, e.endDate.day);
+        return qDay.isAtSameMomentAs(s) ||
+            (qDay.isAfter(s) &&
+                (qDay.isBefore(end) || qDay.isAtSameMomentAs(end)));
+      }).toList();
+
+      // 학사일정 중복 제목(이름) 제거
+      final uniqueAcademic = <String, dynamic>{};
+      for (final e in academic) {
+        uniqueAcademic[e.title] = e;
+      }
+
+      final personal = personalSchedules.where((p) {
+        final s = DateTime(
+          p.startDate.year,
+          p.startDate.month,
+          p.startDate.day,
+        );
+        final end = DateTime(p.endDate.year, p.endDate.month, p.endDate.day);
+        return qDay.isAtSameMomentAs(s) ||
+            (qDay.isAfter(s) &&
+                (qDay.isBefore(end) || qDay.isAtSameMomentAs(end)));
+      }).toList();
+
+      return [...uniqueAcademic.values, ...personal];
+    }
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -289,6 +329,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── 헤더 ──
           Row(
             children: [
               Icon(LucideIcons.calendar, color: primary, size: 22),
@@ -301,9 +342,70 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   fontSize: 18,
                 ),
               ),
+              const Spacer(),
+              // ─ 알림 설정 버튼 ─
+              if (Platform.isAndroid || Platform.isIOS)
+                IconButton(
+                  onPressed: () =>
+                      _showCalendarAlarmSettings(context, primary, isDark),
+                  icon: Icon(LucideIcons.bellRing, color: primary, size: 20),
+                  tooltip: '알림 설정',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              const SizedBox(width: 8),
+              // ─ 개인일정 추가 버튼 ─
+              GestureDetector(
+                onTap: () => _showAddScheduleDialog(context, primary, isDark),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: primary.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(LucideIcons.plus, color: primary, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        '개인일정',
+                        style: TextStyle(
+                          color: primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
+          // ── 범례 설명 ──
+          Row(
+            children: [
+              _legendDot(Colors.blue.shade300),
+              const SizedBox(width: 4),
+              Text(
+                '학사일정',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+              const SizedBox(width: 12),
+              _legendDot(const Color(0xFF6366F1)),
+              const SizedBox(width: 4),
+              Text(
+                '개인일정',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // ── 달력 ──
           TableCalendar(
             firstDay: DateTime.utc(DateTime.now().year - 2, 1, 1),
             lastDay: DateTime.utc(DateTime.now().year + 2, 12, 31),
@@ -346,13 +448,16 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: events.take(4).map((event) {
-                      final e = event as CalendarEvent;
+                      final isPersonal = event is PersonalSchedule;
+                      final color = isPersonal
+                          ? Color(event.colorValue)
+                          : _getEventColor((event as CalendarEvent).title);
                       return Container(
                         width: 5,
                         height: 5,
                         margin: const EdgeInsets.symmetric(horizontal: 0.5),
                         decoration: BoxDecoration(
-                          color: _getEventColor(e.title),
+                          color: color,
                           shape: BoxShape.circle,
                         ),
                       );
@@ -390,95 +495,770 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 _focusedDay = focusedDay;
               });
             },
-            eventLoader: (day) {
-              final events = asyncEvents.value ?? [];
-              return events.where((e) {
-                // Return true if `day` is exactly equal to event `startDate` or within range
-                // Time component is removed for comparison in table_calendar, we just check day
-                final qDay = DateTime(day.year, day.month, day.day);
-                final evtStart = DateTime(
-                  e.startDate.year,
-                  e.startDate.month,
-                  e.startDate.day,
-                );
-                final evtEnd = DateTime(
-                  e.endDate.year,
-                  e.endDate.month,
-                  e.endDate.day,
-                );
-
-                return qDay.isAtSameMomentAs(evtStart) ||
-                    (qDay.isAfter(evtStart) &&
-                        (qDay.isBefore(evtEnd) ||
-                            qDay.isAtSameMomentAs(evtEnd)));
-              }).toList();
-            },
+            eventLoader: _eventsForDay,
           ),
-          const SizedBox(height: 10),
-          if (_selectedDay != null && asyncEvents.hasValue)
-            ...() {
-              final events = asyncEvents.value ?? [];
-              final thisDayEvents = events.where((e) {
-                final day = _selectedDay!;
-                final qDay = DateTime(day.year, day.month, day.day);
-                final evtStart = DateTime(
-                  e.startDate.year,
-                  e.startDate.month,
-                  e.startDate.day,
-                );
-                final evtEnd = DateTime(
-                  e.endDate.year,
-                  e.endDate.month,
-                  e.endDate.day,
-                );
-                return qDay.isAtSameMomentAs(evtStart) ||
-                    (qDay.isAfter(evtStart) &&
-                        (qDay.isBefore(evtEnd) ||
-                            qDay.isAtSameMomentAs(evtEnd)));
-              }).toList();
-              final uniqueTitles = thisDayEvents
-                  .map((e) => e.title)
-                  .toSet()
-                  .toList();
+          const SizedBox(height: 12),
+          // ── 선택된 날짜의 일정 표시 ──
+          if (_selectedDay != null)
+            ..._buildSelectedDayEvents(
+              _eventsForDay(_selectedDay!),
+              asyncEvents,
+              personalSchedules,
+              primary,
+              isDark,
+            ),
+        ],
+      ),
+    );
+  }
 
-              if (uniqueTitles.isEmpty) {
-                return [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      '일정이 없습니다.',
-                      style: TextStyle(color: Colors.grey),
+  Widget _legendDot(Color color) {
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+  }
+
+  List<Widget> _buildSelectedDayEvents(
+    List<dynamic> events,
+    AsyncValue asyncAcademic,
+    List<PersonalSchedule> personalSchedules,
+    Color primary,
+    bool isDark,
+  ) {
+    if (events.isEmpty) {
+      return [
+        const Padding(
+          padding: EdgeInsets.only(top: 4.0),
+          child: Text('일정이 없습니다.', style: TextStyle(color: Colors.grey)),
+        ),
+      ];
+    }
+    return events.map((event) {
+      if (event is PersonalSchedule) {
+        final color = Color(event.colorValue);
+        return Container(
+          margin: const EdgeInsets.only(top: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '개인',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            event.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (event.memo != null && event.memo!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          event.memo!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // 수정 / 삭제 버튼
+              IconButton(
+                icon: Icon(LucideIcons.pencil, size: 14, color: color),
+                onPressed: () => _showAddScheduleDialog(
+                  context,
+                  primary,
+                  isDark,
+                  existing: event,
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: Icon(
+                  LucideIcons.trash2,
+                  size: 14,
+                  color: Colors.red.shade300,
+                ),
+                onPressed: () => _deleteSchedule(event),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+        );
+      } else {
+        // 학사일정
+        final e = event as CalendarEvent;
+        final color = _getEventColor(e.title);
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(LucideIcons.checkCircle2, size: 16, color: color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(e.title, style: const TextStyle(fontSize: 13)),
+              ),
+            ],
+          ),
+        );
+      }
+    }).toList();
+  }
+
+  void _deleteSchedule(PersonalSchedule schedule) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('일정 삭제'),
+        content: Text('“${schedule.title}”을(를) 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(personalScheduleProvider.notifier).delete(schedule.id);
+              Navigator.pop(ctx);
+            },
+            child: const Text('삭제', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 개인일정 저장/수정 다이얼로그 ──
+  void _showAddScheduleDialog(
+    BuildContext context,
+    Color primary,
+    bool isDark, {
+    PersonalSchedule? existing,
+  }) {
+    final titleCtrl = TextEditingController(text: existing?.title ?? '');
+    final memoCtrl = TextEditingController(text: existing?.memo ?? '');
+    DateTime startDate =
+        existing?.startDate ?? (_selectedDay ?? DateTime.now());
+    DateTime endDate = existing?.endDate ?? startDate;
+    int colorValue = existing?.colorValue ?? 0xFF6366F1;
+    bool notifyBefore = existing?.notifyBefore ?? false;
+    int notifyMinutes = existing?.notifyMinutesBefore ?? 60;
+
+    final colorPalette = [
+      0xFF6366F1,
+      0xFF10B981,
+      0xFFF59E0B,
+      0xFFEF4444,
+      0xFF3B82F6,
+      0xFF8B5CF6,
+      0xFFEC4899,
+      0xFF14B8A6,
+    ];
+    final notifyOptions = [
+      (30, '30분 전'),
+      (60, '1시간 전'),
+      (120, '2시간 전'),
+      (1440, '1일 전'),
+      (2880, '2일 전'),
+      (10080, '1주일 전'),
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          return Container(
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 24,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 32,
+            ),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
+              ),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 핸들 바
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ];
-              }
+                  const SizedBox(height: 20),
+                  Text(
+                    existing != null ? '일정 수정' : '개인 일정 추가',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // ─ 제목 ─
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: InputDecoration(
+                      labelText: '일정 제목 *',
+                      labelStyle: TextStyle(color: primary),
+                      filled: true,
+                      fillColor: isDark
+                          ? const Color(0xFF2D2D3F)
+                          : const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: primary),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // ─ 담린 ─
+                  TextField(
+                    controller: memoCtrl,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: '메모 (선택)',
+                      labelStyle: TextStyle(color: primary),
+                      filled: true,
+                      fillColor: isDark
+                          ? const Color(0xFF2D2D3F)
+                          : const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: primary),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // ─ 날짜 선택 ─
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _datePickerButton(
+                          '시작일',
+                          startDate,
+                          primary,
+                          isDark,
+                          () async {
+                            final picked = await showDatePicker(
+                              context: ctx,
+                              initialDate: startDate,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2030),
+                              locale: const Locale('ko', 'KR'),
+                            );
+                            if (picked != null) {
+                              setModalState(() {
+                                startDate = picked;
+                                if (endDate.isBefore(startDate))
+                                  endDate = startDate;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          '→',
+                          style: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: _datePickerButton(
+                          '종료일',
+                          endDate,
+                          primary,
+                          isDark,
+                          () async {
+                            final picked = await showDatePicker(
+                              context: ctx,
+                              initialDate: endDate,
+                              firstDate: startDate,
+                              lastDate: DateTime(2030),
+                              locale: const Locale('ko', 'KR'),
+                            );
+                            if (picked != null)
+                              setModalState(() => endDate = picked);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // ─ 색상 선택 ─
+                  Text(
+                    '색상',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: colorPalette.map((c) {
+                      final isSelected = colorValue == c;
+                      return GestureDetector(
+                        onTap: () => setModalState(() => colorValue = c),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Color(c),
+                            shape: BoxShape.circle,
+                            border: isSelected
+                                ? Border.all(color: Colors.white, width: 3)
+                                : null,
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: Color(c).withOpacity(0.5),
+                                      blurRadius: 6,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: isSelected
+                              ? const Icon(
+                                  Icons.check,
+                                  color: Colors.white,
+                                  size: 16,
+                                )
+                              : null,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  if (Platform.isAndroid || Platform.isIOS) ...[
+                    const SizedBox(height: 16),
+                    // ─ 알림 설정 ─
+                    Row(
+                      children: [
+                        Text(
+                          '일정 알림',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const Spacer(),
+                        Switch(
+                          value: notifyBefore,
+                          activeColor: primary,
+                          onChanged: (v) =>
+                              setModalState(() => notifyBefore = v),
+                        ),
+                      ],
+                    ),
+                    if (notifyBefore) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: notifyOptions.map((opt) {
+                          final isSelected = notifyMinutes == opt.$1;
+                          return GestureDetector(
+                            onTap: () =>
+                                setModalState(() => notifyMinutes = opt.$1),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? primary
+                                    : (isDark
+                                          ? const Color(0xFF2D2D3F)
+                                          : const Color(0xFFF1F5F9)),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                opt.$2,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.grey.shade600,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ],
+                  const SizedBox(height: 24),
+                  // ─ 저장 버튼 ─
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (titleCtrl.text.trim().isEmpty) return;
+                        final schedule = PersonalSchedule(
+                          id: existing?.id ?? const Uuid().v4(),
+                          title: titleCtrl.text.trim(),
+                          startDate: startDate,
+                          endDate: endDate,
+                          memo: memoCtrl.text.trim().isEmpty
+                              ? null
+                              : memoCtrl.text.trim(),
+                          colorValue: colorValue,
+                          notifyBefore: notifyBefore,
+                          notifyMinutesBefore: notifyMinutes,
+                        );
+                        if (existing != null) {
+                          ref
+                              .read(personalScheduleProvider.notifier)
+                              .update(schedule);
+                        } else {
+                          ref
+                              .read(personalScheduleProvider.notifier)
+                              .add(schedule);
+                        }
+                        Navigator.pop(ctx);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        existing != null ? '수정 완료' : '일정 저장',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
-              return uniqueTitles
-                  .map(
-                    (title) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _datePickerButton(
+    String label,
+    DateTime date,
+    Color primary,
+    bool isDark,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF2D2D3F) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: primary.withOpacity(0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : const Color(0xFF1E293B),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── 달력 알림 설정 다이얼로그 ──
+  void _showCalendarAlarmSettings(
+    BuildContext context,
+    Color primary,
+    bool isDark,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final academicAlarm = ref.read(academicAlarmProvider);
+          final academicDays = ref.read(academicAlarmDaysProvider);
+          final personalAlarm = ref.read(personalAlarmProvider);
+
+          return Container(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  '달력 알림 설정',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF1E293B),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // 학사일정 알림
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF2D2D3F)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
                           Icon(
-                            LucideIcons.checkCircle2,
-                            size: 16,
-                            color: _getEventColor(title),
+                            LucideIcons.calendarDays,
+                            color: primary,
+                            size: 18,
                           ),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              title,
-                              style: const TextStyle(fontSize: 13),
+                          Text(
+                            '학사일정 알림',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF1E293B),
                             ),
+                          ),
+                          const Spacer(),
+                          Switch(
+                            value: academicAlarm,
+                            activeColor: primary,
+                            onChanged: (v) {
+                              ref
+                                  .read(academicAlarmProvider.notifier)
+                                  .toggle(v);
+                              setModalState(() {});
+                            },
                           ),
                         ],
                       ),
-                    ),
-                  )
-                  .toList();
-            }(),
-        ],
+                      if (academicAlarm) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          '며칠 전 알림',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          children: [1, 2, 3, 5, 7].map((d) {
+                            final isSelected = academicDays == d;
+                            return GestureDetector(
+                              onTap: () {
+                                ref
+                                    .read(academicAlarmDaysProvider.notifier)
+                                    .set(d);
+                                setModalState(() {});
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? primary
+                                      : (isDark
+                                            ? const Color(0xFF1E1E2E)
+                                            : Colors.white),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? primary
+                                        : Colors.grey.shade300,
+                                  ),
+                                ),
+                                child: Text(
+                                  '$d일 전',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.grey.shade600,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // 개인일정 알림
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF2D2D3F)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        LucideIcons.calendarHeart,
+                        color: const Color(0xFF6366F1),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '개인일정 알림',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF1E293B),
+                        ),
+                      ),
+                      const Spacer(),
+                      Switch(
+                        value: personalAlarm,
+                        activeColor: const Color(0xFF6366F1),
+                        onChanged: (v) {
+                          ref.read(personalAlarmProvider.notifier).toggle(v);
+                          setModalState(() {});
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '개인일정의 알림 시간은 각 일정 추가 시 설정할 수 있습니다.',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

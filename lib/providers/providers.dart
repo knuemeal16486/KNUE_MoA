@@ -5,6 +5,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:knue_moa/constants/theme_constants.dart';
 import 'package:knue_moa/models/notice_model.dart';
 import 'package:knue_moa/models/application_model.dart';
+import 'package:knue_moa/models/personal_schedule_model.dart';
 import 'package:knue_moa/services/scraper_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive/hive.dart';
@@ -521,10 +522,127 @@ class WidgetBoardsNotifier extends StateNotifier<List<String>> {
   }
 }
 
+// === 개인 일정 관리 ===
+final personalScheduleProvider =
+    StateNotifierProvider<PersonalScheduleNotifier, List<PersonalSchedule>>(
+      (ref) => PersonalScheduleNotifier(),
+    );
+
+class PersonalScheduleNotifier extends StateNotifier<List<PersonalSchedule>> {
+  static const String boxName = 'personal_schedules';
+  PersonalScheduleNotifier() : super([]) {
+    _load();
+  }
+
+  Future<Box<PersonalSchedule>> _getBox() async {
+    if (!Hive.isBoxOpen(boxName)) {
+      return await Hive.openBox<PersonalSchedule>(boxName);
+    }
+    return Hive.box<PersonalSchedule>(boxName);
+  }
+
+  Future<void> _load() async {
+    try {
+      final box = await _getBox();
+      final list = box.values.toList()
+        ..sort((a, b) => a.startDate.compareTo(b.startDate));
+      state = list;
+    } catch (e) {
+      state = [];
+    }
+  }
+
+  Future<void> add(PersonalSchedule schedule) async {
+    final box = await _getBox();
+    await box.put(schedule.id, schedule);
+    await _load();
+  }
+
+  Future<void> update(PersonalSchedule schedule) async {
+    final box = await _getBox();
+    await box.put(schedule.id, schedule);
+    await _load();
+  }
+
+  Future<void> delete(String id) async {
+    final box = await _getBox();
+    await box.delete(id);
+    await _load();
+  }
+}
+
+// === 달력 알림 설정 ===
+// 학사일정 알림 ON/OFF
+final academicAlarmProvider =
+    StateNotifierProvider<AcademicAlarmNotifier, bool>(
+      (ref) => AcademicAlarmNotifier(),
+    );
+
+class AcademicAlarmNotifier extends StateNotifier<bool> {
+  AcademicAlarmNotifier() : super(true) {
+    _load();
+  }
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getBool('academic_alarm_on') ?? true;
+  }
+
+  Future<void> toggle(bool value) async {
+    state = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('academic_alarm_on', value);
+  }
+}
+
+// 학사일정 알림 며칠 전
+final academicAlarmDaysProvider =
+    StateNotifierProvider<AcademicAlarmDaysNotifier, int>(
+      (ref) => AcademicAlarmDaysNotifier(),
+    );
+
+class AcademicAlarmDaysNotifier extends StateNotifier<int> {
+  AcademicAlarmDaysNotifier() : super(1) {
+    _load();
+  }
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getInt('academic_alarm_days') ?? 1;
+  }
+
+  Future<void> set(int days) async {
+    state = days;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('academic_alarm_days', days);
+  }
+}
+
+// 개인 일정 알림 ON/OFF
+final personalAlarmProvider =
+    StateNotifierProvider<PersonalAlarmNotifier, bool>(
+      (ref) => PersonalAlarmNotifier(),
+    );
+
+class PersonalAlarmNotifier extends StateNotifier<bool> {
+  PersonalAlarmNotifier() : super(true) {
+    _load();
+  }
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getBool('personal_alarm_on') ?? true;
+  }
+
+  Future<void> toggle(bool value) async {
+    state = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('personal_alarm_on', value);
+  }
+}
+
 // === 설정 초기화 ===
 Future<void> resetAllSettings() async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.clear();
   await Hive.deleteBoxFromDisk('applications_v2');
   await Hive.deleteBoxFromDisk(KnueScraper.noticeBoxName);
+  await Hive.deleteBoxFromDisk(PersonalScheduleNotifier.boxName);
 }
