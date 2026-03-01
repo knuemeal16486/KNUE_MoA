@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:knue_moa/constants/theme_constants.dart';
 import 'package:knue_moa/models/personal_schedule_model.dart';
+import 'package:knue_moa/models/dday_model.dart';
 import 'package:knue_moa/providers/providers.dart';
 import 'package:knue_moa/services/scraper_service.dart';
 import 'package:knue_moa/widgets/notice_card.dart';
@@ -275,6 +276,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       calendarProvider(DateTime(_focusedDay.year, _focusedDay.month)),
     );
     final personalSchedules = ref.watch(personalScheduleProvider);
+    final ddays = ref.watch(ddayProvider);
 
     // 날짜별 이벤트 로더 (학사일정 + 개인일정 통합)
     List<dynamic> _eventsForDay(DateTime day) {
@@ -343,6 +345,40 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 ),
               ),
               const Spacer(),
+              // ─ 디데이 추가 버튼 ─
+              GestureDetector(
+                onTap: () => _showAddDDayDialog(context, primary, isDark),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        LucideIcons.flag,
+                        color: Colors.orange.shade600,
+                        size: 13,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'D-Day',
+                        style: TextStyle(
+                          color: Colors.orange.shade600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               // ─ 알림 설정 버튼 ─
               if (Platform.isAndroid || Platform.isIOS)
                 IconButton(
@@ -385,8 +421,13 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          // ── D-Day 섹션 ──
+          if (ddays.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _buildDDaySection(ddays, primary, isDark),
+          ],
           // ── 범례 설명 ──
+          const SizedBox(height: 16),
           Row(
             children: [
               _legendDot(Colors.blue.shade300),
@@ -812,7 +853,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           isDark,
                           () async {
                             final picked = await showDatePicker(
-                              context: ctx,
+                              context: context,
+                              useRootNavigator: true,
                               initialDate: startDate,
                               firstDate: DateTime(2020),
                               lastDate: DateTime(2030),
@@ -846,7 +888,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           isDark,
                           () async {
                             final picked = await showDatePicker(
-                              context: ctx,
+                              context: context,
+                              useRootNavigator: true,
                               initialDate: endDate,
                               firstDate: startDate,
                               lastDate: DateTime(2030),
@@ -1059,6 +1102,465 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── D-Day 섹션 위젯 ──
+  Widget _buildDDaySection(List<DDay> ddays, Color primary, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(LucideIcons.flag, color: Colors.orange.shade600, size: 15),
+            const SizedBox(width: 6),
+            Text(
+              'D-Day',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange.shade600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 86,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: ddays.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final dday = ddays[index];
+              final color = Color(dday.colorValue);
+              final d = dday.daysLeft;
+              final label = dday.ddayLabel;
+              final isToday = d == 0;
+              final isPast = d < 0;
+              return GestureDetector(
+                onLongPress: () =>
+                    _showDDayOptions(context, dday, primary, isDark),
+                child: Container(
+                  width: 110,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color, color.withOpacity(0.75)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        dday.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isToday ? 20 : 22,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      Text(
+                        isPast
+                            ? '${dday.targetDate.month}/${dday.targetDate.day} 지낙'
+                            : isToday
+                            ? '오늘!'
+                            : '${dday.targetDate.month}/${dday.targetDate.day}',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '길게 누르면 수정/삭제할 수 있어요',
+          style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+        ),
+        const SizedBox(height: 14),
+      ],
+    );
+  }
+
+  // ── D-Day 수정/삭제 옵션 ──
+  void _showDDayOptions(
+    BuildContext context,
+    DDay dday,
+    Color primary,
+    bool isDark,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              dday.title,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : const Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              dday.ddayLabel,
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(dday.colorValue),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: Icon(LucideIcons.pencil, color: primary),
+              title: const Text('수정'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showAddDDayDialog(context, primary, isDark, existing: dday);
+              },
+            ),
+            ListTile(
+              leading: Icon(LucideIcons.trash2, color: Colors.red.shade400),
+              title: Text('삭제', style: TextStyle(color: Colors.red.shade400)),
+              onTap: () {
+                ref.read(ddayProvider.notifier).delete(dday.id);
+                Navigator.pop(ctx);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── D-Day 추가/수정 다이얼로그 ──
+  void _showAddDDayDialog(
+    BuildContext context,
+    Color primary,
+    bool isDark, {
+    DDay? existing,
+  }) {
+    final titleCtrl = TextEditingController(text: existing?.title ?? '');
+    DateTime targetDate = existing?.targetDate ?? DateTime.now();
+    int colorValue = existing?.colorValue ?? 0xFFEF4444;
+
+    final colorPalette = [
+      0xFFEF4444,
+      0xFFF97316,
+      0xFFEAB308,
+      0xFF22C55E,
+      0xFF3B82F6,
+      0xFF8B5CF6,
+      0xFFEC4899,
+      0xFF14B8A6,
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final target = DateTime(
+            targetDate.year,
+            targetDate.month,
+            targetDate.day,
+          );
+          final diff = target.difference(today).inDays;
+          final previewLabel = diff == 0
+              ? 'D-Day'
+              : diff > 0
+              ? 'D-$diff'
+              : 'D+${diff.abs()}';
+
+          return Container(
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 24,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 32,
+            ),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
+              ),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Text(
+                        existing != null ? 'D-Day 수정' : 'D-Day 추가',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF1E293B),
+                        ),
+                      ),
+                      const Spacer(),
+                      // 미리보기
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Color(colorValue),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          previewLabel,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // ─ 이름 입력 ─
+                  TextField(
+                    controller: titleCtrl,
+                    onChanged: (_) => setModalState(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'D-Day 이름 *',
+                      labelStyle: TextStyle(color: Colors.orange.shade600),
+                      filled: true,
+                      fillColor: isDark
+                          ? const Color(0xFF2D2D3F)
+                          : const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: Colors.orange.shade400),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // ─ 날짜 선택 ─
+                  Text(
+                    '목표 날짜',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      // Bottom sheet의 ctx가 아닌 외부 context 사용
+                      // — Root Navigator를 강제 사용 → Bottom sheet와의 Navigator 충돌 방지
+                      final picked = await showDatePicker(
+                        context: context,
+                        useRootNavigator: true,
+                        initialDate: targetDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2035),
+                        locale: const Locale('ko', 'KR'),
+                      );
+                      if (picked != null) {
+                        setModalState(() => targetDate = picked);
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF2D2D3F)
+                            : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            LucideIcons.calendarDays,
+                            color: Colors.orange.shade500,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            '${targetDate.year}.${targetDate.month.toString().padLeft(2, '0')}.${targetDate.day.toString().padLeft(2, '0')}',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF1E293B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // ─ 색상 선택 ─
+                  Text(
+                    '색상',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: colorPalette.map((c) {
+                      final isSelected = colorValue == c;
+                      return GestureDetector(
+                        onTap: () => setModalState(() => colorValue = c),
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: Color(c),
+                            shape: BoxShape.circle,
+                            border: isSelected
+                                ? Border.all(color: Colors.white, width: 3)
+                                : null,
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: Color(c).withOpacity(0.5),
+                                      blurRadius: 8,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: isSelected
+                              ? const Icon(
+                                  Icons.check,
+                                  color: Colors.white,
+                                  size: 16,
+                                )
+                              : null,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 28),
+                  // ─ 저장 버튼 ─
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (titleCtrl.text.trim().isEmpty) return;
+                        final newDDay = DDay(
+                          id: existing?.id ?? const Uuid().v4(),
+                          title: titleCtrl.text.trim(),
+                          targetDate: targetDate,
+                          colorValue: colorValue,
+                        );
+                        if (existing != null) {
+                          ref.read(ddayProvider.notifier).update(newDDay);
+                        } else {
+                          ref.read(ddayProvider.notifier).add(newDDay);
+                        }
+                        Navigator.pop(ctx);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(colorValue),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        existing != null ? '수정 완료' : 'D-Day 저장',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

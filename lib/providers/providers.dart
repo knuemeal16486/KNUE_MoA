@@ -6,6 +6,7 @@ import 'package:knue_moa/constants/theme_constants.dart';
 import 'package:knue_moa/models/notice_model.dart';
 import 'package:knue_moa/models/application_model.dart';
 import 'package:knue_moa/models/personal_schedule_model.dart';
+import 'package:knue_moa/models/dday_model.dart';
 import 'package:knue_moa/services/scraper_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive/hive.dart';
@@ -349,7 +350,7 @@ final aiRecommendationProvider = FutureProvider<List<Notice>>((ref) async {
 
   // 2. Gemini 호출
   const apiKey = 'AIzaSyAaeyQada46oab0XgbHzjajmHM4cDYARnQ';
-  final model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: apiKey);
+  final model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: apiKey);
 
   final candidateCount = recentNotices.length > 50 ? 50 : recentNotices.length;
   final candidates = recentNotices.take(candidateCount).toList();
@@ -638,6 +639,54 @@ class PersonalAlarmNotifier extends StateNotifier<bool> {
   }
 }
 
+// === 디데이 관리 ===
+final ddayProvider = StateNotifierProvider<DDayNotifier, List<DDay>>(
+  (ref) => DDayNotifier(),
+);
+
+class DDayNotifier extends StateNotifier<List<DDay>> {
+  static const String boxName = 'ddays';
+  DDayNotifier() : super([]) {
+    _load();
+  }
+
+  Future<Box<DDay>> _getBox() async {
+    if (!Hive.isBoxOpen(boxName)) {
+      return await Hive.openBox<DDay>(boxName);
+    }
+    return Hive.box<DDay>(boxName);
+  }
+
+  Future<void> _load() async {
+    try {
+      final box = await _getBox();
+      final list = box.values.toList()
+        ..sort((a, b) => a.targetDate.compareTo(b.targetDate));
+      state = list;
+    } catch (e) {
+      state = [];
+    }
+  }
+
+  Future<void> add(DDay dday) async {
+    final box = await _getBox();
+    await box.put(dday.id, dday);
+    await _load();
+  }
+
+  Future<void> update(DDay dday) async {
+    final box = await _getBox();
+    await box.put(dday.id, dday);
+    await _load();
+  }
+
+  Future<void> delete(String id) async {
+    final box = await _getBox();
+    await box.delete(id);
+    await _load();
+  }
+}
+
 // === 설정 초기화 ===
 Future<void> resetAllSettings() async {
   final prefs = await SharedPreferences.getInstance();
@@ -645,4 +694,5 @@ Future<void> resetAllSettings() async {
   await Hive.deleteBoxFromDisk('applications_v2');
   await Hive.deleteBoxFromDisk(KnueScraper.noticeBoxName);
   await Hive.deleteBoxFromDisk(PersonalScheduleNotifier.boxName);
+  await Hive.deleteBoxFromDisk(DDayNotifier.boxName);
 }
