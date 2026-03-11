@@ -19,7 +19,7 @@ void main() async {
 
   // home_widget은 Android / iOS 전용 (Windows에서는 스킵)
   if (Platform.isAndroid || Platform.isIOS) {
-    await HomeWidget.setAppGroupId('group.com.knue.knuemoa');
+    await HomeWidget.setAppGroupId('group.com.knuemoa.app');
   }
 
   await Hive.initFlutter();

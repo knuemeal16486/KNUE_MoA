@@ -253,7 +253,7 @@ class NotificationService {
     const WindowsInitializationSettings initializationSettingsWindows =
         WindowsInitializationSettings(
           appName: 'KNUE MoA',
-          appUserModelId: 'com.knue.knuemoa',
+          appUserModelId: 'com.knuemoa.app',
           guid: 'd3b3b3b3-b3b3-b3b3-b3b3-b3b3b3b3b3b3',
         );
 
