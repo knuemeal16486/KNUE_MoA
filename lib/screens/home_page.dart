@@ -254,16 +254,15 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         ref.invalidate(aiRecommendationProvider);
         await ref.read(noticesProvider.notifier).refresh();
       },
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: 40),
-        cacheExtent: 400,
-        children: [
-          RepaintBoundary(child: _buildKeywordCard(themeData)),
-          const RepaintBoundary(child: AiBanner()),
-          RepaintBoundary(child: _buildFolderSystem(themeData)),
-          RepaintBoundary(child: _buildNoticeList(themeData)),
-          RepaintBoundary(child: _buildRecentNoticesHighlight(themeData)),
-          RepaintBoundary(child: _buildCalendar(themeData)),
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(child: _buildKeywordCard(themeData)),
+          const SliverToBoxAdapter(child: AiBanner()),
+          SliverToBoxAdapter(child: _buildFolderSystem(themeData)),
+          _buildNoticeListSliver(themeData),
+          SliverToBoxAdapter(child: _buildRecentNoticesHighlight(themeData)),
+          SliverToBoxAdapter(child: _buildCalendar(themeData)),
+          const SliverPadding(padding: EdgeInsets.only(bottom: 40)),
         ],
       ),
     );
@@ -2421,7 +2420,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     );
   }
 
-  Widget _buildNoticeList(Map<String, dynamic> theme) {
+  Widget _buildNoticeListSliver(Map<String, dynamic> theme) {
     final primary = theme['primary'] as Color;
     final noticesAsync = ref.watch(noticesProvider);
     final favorites = ref.watch(favoritesNotifierProvider);
@@ -2429,77 +2428,70 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
     return noticesAsync.when(
       data: (notices) {
-        if (notices.isEmpty)
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(40),
-              child: Column(
-                children: [
-                  Icon(
-                    LucideIcons.inbox,
-                    size: 48,
-                    color: Colors.grey.shade400,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    '공지사항이 없습니다.\n(새로고침을 당겨주세요)',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
+        if (notices.isEmpty) {
+          return SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(40),
+                child: Column(
+                  children: [
+                    Icon(
+                      LucideIcons.inbox,
+                      size: 48,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      '공지사항이 없습니다.\n(새로고침을 당겨주세요)',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
+        }
 
         // 초등교육과 버튼 처리
         if (_selectedGroup == 'DEPT' && _selectedDept == '초등교육과') {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(40),
-              child: Column(
-                children: [
-                  Icon(LucideIcons.messageCircle, size: 64, color: primary),
-                  const SizedBox(height: 24),
-                  const Text(
-                    '초등교육과 공지사항은\n다음 카페에서 확인 가능합니다.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      const url = 'https://m.cafe.daum.net/knue-primary/_rec';
-                      if (!await launchUrl(Uri.parse(url))) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('링크를 열 수 없습니다.')),
-                          );
-                        }
-                      }
-                    },
-                    icon: const Icon(
-                      LucideIcons.externalLink,
-                      color: Colors.white,
-                    ),
-                    label: const Text(
-                      '초등교육과 카페 바로가기',
+          return SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(40),
+                child: Column(
+                  children: [
+                    Icon(LucideIcons.messageCircle, size: 64, color: primary),
+                    const SizedBox(height: 24),
+                    const Text(
+                      '초등교육과 공지사항은\n다음 카페에서 확인 가능합니다.',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 16,
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        const url = 'https://m.cafe.daum.net/knue-primary/_rec';
+                        launchUrl(
+                          Uri.parse(url),
+                          mode: LaunchMode.externalApplication,
+                        );
+                      },
+                      icon: const Icon(
+                        LucideIcons.externalLink,
+                        color: Colors.white,
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+                      label: const Text(
+                        '초등교육과 카페 바로가기',
+                        style: TextStyle(color: Colors.white),
                       ),
+                      style: ElevatedButton.styleFrom(backgroundColor: primary),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
@@ -2507,57 +2499,34 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
         final filtered = notices.where((n) {
           if (_selectedGroup == 'MY') {
-            final isFavNotice = favorites.contains(n.id);
-            final isFavBoard = favBoards.contains(n.category);
-            return isFavNotice || isFavBoard;
+            return favorites.contains(n.id) || favBoards.contains(n.category);
           }
-
           if (_selectedGroup == 'DEPT') {
             final targetDepts =
                 KnueScraper.collegeStructure[_selectedCollege] ?? [];
             if (!targetDepts.contains(n.category)) return false;
-            // DEPT group uses its own scraper logic, but notices list relies on 'category'.
-            if (_selectedDept != 'ALL') return n.category == _selectedDept;
-            return true;
+            return _selectedDept == 'ALL' || n.category == _selectedDept;
           } else if (_selectedGroup == 'ANNEX') {
             if (n.group != 'ANNEX') return false;
             final targetBoards =
                 KnueScraper.annexStructure[_selectedAnnexGroup] ?? [];
             if (!targetBoards.contains(n.category)) return false;
-            if (_selectedBoard != 'ALL') return n.category == _selectedBoard;
-            return true;
+            return _selectedBoard == 'ALL' || n.category == _selectedBoard;
           } else {
             if (n.group != _selectedGroup) return false;
-            if (_selectedBoard != 'ALL') return n.category == _selectedBoard;
-            return true;
+            return _selectedBoard == 'ALL' || n.category == _selectedBoard;
           }
         }).toList();
 
         if (filtered.isEmpty) {
-          String msg = '해당하는 게시글이 없습니다.';
-          if (_selectedGroup == 'MY' &&
-              favorites.isEmpty &&
-              favBoards.isEmpty) {
-            msg =
-                '즐겨찾기한 게시글이나 게시판이 없습니다.\n게시판 칩을 꾹 누르거나, 게시글의 별 모양을 눌러 추가해보세요.';
-          }
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(40),
-              child: Column(
-                children: [
-                  Icon(
-                    LucideIcons.searchX,
-                    size: 48,
-                    color: Colors.grey.shade400,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    msg,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ],
+          return const SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: Text(
+                  '해당하는 게시글이 없습니다.',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ),
             ),
           );
@@ -2566,100 +2535,51 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         final displayList = filtered.take(_noticeDisplayLimit).toList();
         final hasMore = filtered.length > displayList.length;
 
-        return Column(
-          children: [
-            AnimationLimiter(
-              child: ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: displayList.length,
-                itemBuilder: (ctx, i) {
-                  return AnimationConfiguration.staggeredList(
-                    position: i,
-                    duration: const Duration(milliseconds: 375),
-                    child: SlideAnimation(
-                      verticalOffset: 50.0,
-                      child: FadeInAnimation(
-                        child: GestureDetector(
-                          onTap: () {
-                            ref
-                                .read(clickHistoryProvider.notifier)
-                                .logClick(displayList[i].title);
-                          },
-                          child: NoticeCard(
-                            notice: displayList[i],
-                            themeData: theme,
-                          ),
+        // SliverList 내부에 공지사항 카드들과 '더보기' 버튼을 모두 포함시킴
+        return SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate((context, i) {
+              if (i < displayList.length) {
+                final notice = displayList[i];
+                return NoticeCard(notice: notice, themeData: theme);
+              } else {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: TextButton.icon(
+                      onPressed: () =>
+                          setState(() => _noticeDisplayLimit += 10),
+                      icon: const Icon(LucideIcons.plus),
+                      label: const Text('더보기'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: primary,
+                        backgroundColor: primary.withOpacity(0.1),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-            if (hasMore)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _noticeDisplayLimit += 10;
-                    });
-                  },
-                  icon: const Icon(LucideIcons.plus),
-                  label: const Text('더보기'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: primary,
-                    backgroundColor: primary.withOpacity(0.1),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
                   ),
-                ),
-              ),
-          ],
+                );
+              }
+            }, childCount: displayList.length + (hasMore ? 1 : 0)),
+          ),
         );
       },
-      error: (error, stack) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            children: [
-              const Icon(LucideIcons.alertCircle, size: 48, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(
-                '오류가 발생했습니다:\n$error',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey),
-              ),
-            ],
+      loading: () => const SliverToBoxAdapter(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(40),
+            child: CircularProgressIndicator(),
           ),
         ),
       ),
-      loading: () => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 20),
-              Text(
-                '공지사항을 모아오고 있습니다...',
-                style: TextStyle(
-                  color: Colors.grey.shade500,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      error: (e, s) => SliverToBoxAdapter(child: Center(child: Text('오류: $e'))),
     );
   }
 }
@@ -3634,7 +3554,7 @@ class WidgetSettingsSheet extends ConsumerWidget {
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: primary.withValues(alpha: 0.3)),
+              border: Border.all(color: primary.withOpacity(0.3)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3668,7 +3588,7 @@ class WidgetSettingsSheet extends ConsumerWidget {
                               b,
                               style: const TextStyle(fontSize: 10),
                             ),
-                            backgroundColor: primary.withValues(alpha: 0.1),
+                            backgroundColor: primary.withOpacity(0.1),
                             padding: EdgeInsets.zero,
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,

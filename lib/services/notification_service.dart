@@ -172,7 +172,7 @@ Future<void> _checkCalendarNotifications() async {
     // ── 개인 일정 알림 ──
     final personalAlarmOn = prefs.getBool('personal_alarm_on') ?? true;
     if (personalAlarmOn) {
-      if (!Hive.isAdapterRegistered(2)) {
+      if (!Hive.isAdapterRegistered(3)) {
         Hive.registerAdapter(PersonalScheduleAdapter());
       }
       const boxName = 'personal_schedules';

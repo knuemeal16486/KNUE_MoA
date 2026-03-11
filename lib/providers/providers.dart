@@ -84,7 +84,11 @@ class ReadNoticesNotifier extends StateNotifier<List<int>> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final strings = prefs.getStringList('read_notices') ?? [];
-    state = strings.map(int.parse).toList();
+    state = strings
+        .map((e) => int.tryParse(e))
+        .where((e) => e != null)
+        .cast<int>()
+        .toList();
   }
 
   Future<void> markAsRead(int id) async {
@@ -143,7 +147,11 @@ class FavoritesNotifier extends StateNotifier<List<int>> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final strings = prefs.getStringList('favorites') ?? [];
-    state = strings.map(int.parse).toList();
+    state = strings
+        .map((e) => int.tryParse(e))
+        .where((e) => e != null)
+        .cast<int>()
+        .toList();
   }
 
   Future<void> toggle(int id) async {
@@ -350,7 +358,7 @@ final aiRecommendationProvider = FutureProvider<List<Notice>>((ref) async {
 
   // 2. Gemini 호출
   const apiKey = 'AIzaSyAaeyQada46oab0XgbHzjajmHM4cDYARnQ';
-  final model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: apiKey);
+  final model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: apiKey);
 
   final candidateCount = recentNotices.length > 50 ? 50 : recentNotices.length;
   final candidates = recentNotices.take(candidateCount).toList();
@@ -384,10 +392,20 @@ final aiRecommendationProvider = FutureProvider<List<Notice>>((ref) async {
         response.text?.replaceAll('```json', '').replaceAll('```', '').trim() ??
         '[]';
 
-    final List<dynamic> recommendedIds = jsonDecode(text);
+    final dynamic decoded = jsonDecode(text);
+    List<dynamic> recommendedIds = [];
+    if (decoded is List) {
+      recommendedIds = decoded;
+    } else if (decoded is Map && decoded.containsKey('recommendations')) {
+      recommendedIds = decoded['recommendations'];
+    } else if (decoded is Map && decoded.containsKey('ids')) {
+      recommendedIds = decoded['ids'];
+    }
 
     final recommendations = candidates
-        .where((n) => recommendedIds.contains(n.id))
+        .where(
+          (n) => recommendedIds.any((rid) => rid.toString() == n.id.toString()),
+        )
         .toList();
 
     return recommendations.take(3).toList();
@@ -423,7 +441,7 @@ class AlarmNotifier extends StateNotifier<bool> {
 class NoticesNotifier extends AsyncNotifier<List<Notice>> {
   @override
   Future<List<Notice>> build() async {
-    final scraper = ref.read(scraperProvider);
+    final scraper = ref.watch(scraperProvider);
     // 초기 로딩 (캐시가 있으면 즉시 반환, 없으면 웹에서 로딩)
     final notices = await scraper.fetchAllNotices(forceRefresh: false);
 

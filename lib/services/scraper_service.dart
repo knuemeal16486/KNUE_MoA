@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:knue_moa/models/notice_model.dart';
 import 'package:hive/hive.dart';
 import 'package:cp949_codec/cp949_codec.dart';
+import 'package:flutter/foundation.dart';
 
 class CalendarEvent {
   final DateTime startDate;
@@ -283,7 +284,7 @@ class KnueScraper {
           String fullLink =
               'https://lib.knue.ac.kr/#/bbs/notice/${item['id']}?offset=0&max=20';
 
-          int id = _generateId(group, category, title, date, fullLink);
+          int id = Object.hash(group, category, title, date, fullLink);
           bool isNew = date.contains(
             DateFormat('yyyy.MM.dd').format(DateTime.now()),
           );
@@ -314,28 +315,42 @@ class KnueScraper {
       decodedHtml = cp949.decode(response.bodyBytes);
     }
 
-    var doc = parser.parse(decodedHtml);
-    var rows = doc.querySelectorAll('tbody tr');
+    // 🔥 무거운 HTML 파싱 작업을 별도 Isolate(compute)에서 실행하여 UI 프리징 방지
+    return await compute(_parseHtmlStatic, {
+      'html': decodedHtml,
+      'group': group,
+      'category': category,
+      'url': url,
+    });
+  }
+
+  // 🔥 Isolate에서 실행할 static 파싱 함수
+  static List<Notice> _parseHtmlStatic(Map<String, dynamic> params) {
+    final String html = params['html'];
+    final String group = params['group'];
+    final String category = params['category'];
+    final String url = params['url'];
+
+    final notices = <Notice>[];
+    final doc = parser.parse(html);
+    final rows = doc.querySelectorAll('tbody tr');
 
     for (var row in rows) {
       try {
-        // 제목과 링크 추출
         var titleEl =
             row.querySelector('.p-subject a') ?? row.querySelector('a');
         if (titleEl == null) continue;
 
         String title = titleEl.text.trim();
-        // 🔥 제목에서 '새글' 관련 문자열 제거 (대괄호 포함, 앞뒤 공백 처리)
         title = title.replaceAll(RegExp(r'\[?새글\]?\s*'), '').trim();
 
         String relativeLink = titleEl.attributes['href'] ?? '';
-        String fullLink = _resolveLink(url, relativeLink);
+        String fullLink = _resolveLinkStatic(url, relativeLink);
 
         var tds = row.querySelectorAll('td');
         String date = '';
         String author = '학교';
 
-        // 1. 날짜 추출 (정규식으로 yyyy-mm-dd 또는 yyyy.mm.dd 패턴 찾기)
         final dateRegex = RegExp(r'\d{2,4}[-.]\d{2}[-.]\d{2}');
         for (var td in tds) {
           final match = dateRegex.firstMatch(td.text.trim());
@@ -345,25 +360,19 @@ class KnueScraper {
           }
         }
 
-        // 정규식으로 못 찾은 경우 기존 방식 활용
         if (date.isEmpty && tds.length > 2) {
           date = tds.length > 4 ? tds[4].text.trim() : tds[2].text.trim();
           date = date.replaceAll('-', '.');
         }
 
-        // 2. 작성자 추출 (날짜나 숫자가 아닌 텍스트를 가진 td를 찾음)
         if (tds.length > 2) {
           String tempAuthor = tds[2].text.trim();
-          // date와 같거나 숫자가 많이 포함되어 있으면 작성자가 아닐 확률이 높으므로 '학교'로 처리
           if (tempAuthor != date && !RegExp(r'\d{4}').hasMatch(tempAuthor)) {
             author = tempAuthor;
           }
         }
 
-        // ID 생성 (게시판 URL + 제목 + 날짜)로 고유성 확보
-        int id = _generateId(group, category, title, date, fullLink);
-
-        // 오늘 날짜인지 확인
+        int id = Object.hash(group, category, title, date, fullLink);
         bool isNew = date.contains(
           DateFormat('yyyy.MM.dd').format(DateTime.now()),
         );
@@ -381,14 +390,13 @@ class KnueScraper {
           ),
         );
       } catch (e) {
-        print('Parsing error in $category: $e');
+        // Isolate 내에서는 print보다는 로그 기록 권장되나 기존 로직 유지
       }
     }
     return notices;
   }
 
-  // 상대 경로를 절대 경로로 변환
-  String _resolveLink(String baseUrl, String relative) {
+  static String _resolveLinkStatic(String baseUrl, String relative) {
     if (relative.isEmpty) return baseUrl;
     if (relative.startsWith('http')) return relative;
     try {
@@ -400,16 +408,7 @@ class KnueScraper {
     }
   }
 
-  // 고유 ID 생성
-  int _generateId(
-    String group,
-    String category,
-    String title,
-    String date,
-    String link,
-  ) {
-    return Object.hash(group, category, title, date, link);
-  }
+  // Isolate에서는 정적 메서드만 사용하므로 기존 인스턴스 메서드들은 삭제되었습니다.
 
   // 달력 행사 스크래핑
   Future<List<CalendarEvent>> fetchCalendarEvents(int year, int month) async {
