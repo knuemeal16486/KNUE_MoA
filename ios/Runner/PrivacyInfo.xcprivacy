@@ -16,7 +16,6 @@
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
 				<string>CA92.1</string>
-				<string>1C48.1</string>
 			</array>
 		</dict>
 		<dict>
