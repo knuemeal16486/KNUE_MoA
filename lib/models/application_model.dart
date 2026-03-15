@@ -66,16 +66,25 @@ class ApplicationForm {
     sb.writeln('연락처: $contact');
     sb.writeln('학번: $studentId');
     sb.writeln('주전공: $major');
-    if (doubleMajor.isNotEmpty) sb.writeln('복수/부전공: $doubleMajor');
+    if (doubleMajor.isNotEmpty) {
+      sb.writeln('복수/부전공: $doubleMajor');
+    }
     sb.writeln('평점평균: $gpa / 4.5');
-    if (completedSemesters.isNotEmpty)
+    if (completedSemesters.isNotEmpty) {
       sb.writeln('이수학기: $completedSemesters학기');
-    if (certifications.isNotEmpty) sb.writeln('자격증: $certifications');
-    if (volunteerHours.isNotEmpty) sb.writeln('봉사시간: $volunteerHours시간');
+    }
+    if (certifications.isNotEmpty) {
+      sb.writeln('자격증: $certifications');
+    }
+    if (volunteerHours.isNotEmpty) {
+      sb.writeln('봉사시간: $volunteerHours시간');
+    }
     sb.writeln('\n[자기소개서]');
     sb.writeln(selfIntroduction);
-    if (etc.isNotEmpty) sb.writeln('\n[기타]');
-    if (etc.isNotEmpty) sb.writeln(etc);
+    if (etc.isNotEmpty) {
+      sb.writeln('\n[기타]');
+      sb.writeln(etc);
+    }
     return sb.toString();
   }
 }

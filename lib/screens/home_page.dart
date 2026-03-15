@@ -106,7 +106,7 @@ class _HomePageState extends ConsumerState<HomePage>
         color: Theme.of(context).cardColor,
         border: Border(
           top: BorderSide(
-            color: Theme.of(context).dividerColor.withOpacity(0.1),
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
           ),
         ),
       ),
@@ -151,12 +151,12 @@ class _HomePageState extends ConsumerState<HomePage>
         height: 56,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [primaryColor, primaryColor.withOpacity(0.7)],
+            colors: [primaryColor, primaryColor.withValues(alpha: 0.7)],
           ),
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: primaryColor.withOpacity(0.4),
+              color: primaryColor.withValues(alpha: 0.4),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -321,7 +321,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -353,7 +353,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.12),
+                    color: Colors.orange.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -398,7 +398,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: primary.withOpacity(0.12),
+                    color: primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -582,9 +582,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
           margin: const EdgeInsets.only(top: 6),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withOpacity(0.3)),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
           ),
           child: Row(
             children: [
@@ -609,7 +609,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.2),
+                            color: color.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -862,8 +862,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                             if (picked != null) {
                               setModalState(() {
                                 startDate = picked;
-                                if (endDate.isBefore(startDate))
+                                if (endDate.isBefore(startDate)) {
                                   endDate = startDate;
+                                }
                               });
                             }
                           },
