@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -12,9 +13,23 @@ import 'package:knue_moa/services/scraper_service.dart';
 import 'package:knue_moa/models/application_model.dart';
 import 'package:knue_moa/services/notification_service.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Firebase 초기화 (config 파일이 없을 경우 에러가 날 수 있으므로 try-catch 또는 수동 추가 확인 필요)
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint("Firebase initialization failed: $e");
+    debugPrint(
+      "Please add google-services.json to android/app and GoogleService-Info.plist to ios/Runner",
+    );
+  }
+
   await NotificationService.init();
 
   // home_widget은 Android / iOS 전용 (Windows에서는 스킵)

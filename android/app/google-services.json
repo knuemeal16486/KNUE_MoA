@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "140746465145",
+    "project_id": "knue-moa",
+    "storage_bucket": "knue-moa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:140746465145:android:aec9054023db9c990419a8",
+        "android_client_info": {
+          "package_name": "com.knuemoa.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALnJgOEI1uC7E8QRvFhj01xJIIl6Z3-0M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

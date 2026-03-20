@@ -284,7 +284,8 @@ class KnueScraper {
           String fullLink =
               'https://lib.knue.ac.kr/#/bbs/notice/${item['id']}?offset=0&max=20';
 
-          int id = Object.hash(group, category, title, date, fullLink);
+          // Stable ID generation using title and link
+          int id = (title + fullLink).hashCode;
           bool isNew = date.contains(
             DateFormat('yyyy.MM.dd').format(DateTime.now()),
           );
@@ -372,7 +373,7 @@ class KnueScraper {
           }
         }
 
-        int id = Object.hash(group, category, title, date, fullLink);
+        int id = Object.hash(group, category, title, fullLink);
         bool isNew = date.contains(
           DateFormat('yyyy.MM.dd').format(DateTime.now()),
         );

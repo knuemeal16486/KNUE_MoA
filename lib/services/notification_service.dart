@@ -6,9 +6,24 @@ import 'package:knue_moa/services/scraper_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:knue_moa/models/notice_model.dart';
 import 'package:knue_moa/models/personal_schedule_model.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
+
+// ─────────────────────────────────────────────────────────────────
+// Firebase 백그라운드 메시지 핸들러 — @pragma 필수
+// ─────────────────────────────────────────────────────────────────
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Firebase 초기화가 필요할 수 있음 (이미 main에서 했더라도 백그라운드 격리 환경 대응)
+  // await Firebase.initializeApp();
+  
+  if (kDebugMode) {
+    print("Handling a background message: ${message.messageId}");
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────
 // Workmanager 백그라운드 진입점 — @pragma 필수
@@ -36,72 +51,66 @@ void callbackDispatcher() {
             forceRefresh: true,
           );
           if (notices.isNotEmpty) {
-            final bool initialized =
-                prefs.getBool('notification_initialized') ?? false;
+            final favBoards = prefs.getStringList('fav_boards') ?? [];
+            final keywords = prefs.getStringList('keywords') ?? [];
+            final List<String> notifiedIds =
+                prefs.getStringList('notified_ids') ?? [];
 
-            if (!initialized) {
-              final currentIds = notices
-                  .take(50)
-                  .map((n) => n.id.toString())
-                  .toList();
-              await prefs.setStringList('notified_ids', currentIds);
-              await prefs.setBool('notification_initialized', true);
-            } else {
-              final favBoards = prefs.getStringList('fav_boards') ?? [];
-              final keywords = prefs.getStringList('keywords') ?? [];
-              final List<String> notifiedIds =
-                  prefs.getStringList('notified_ids') ?? [];
+            final List<Map<String, String>> newItems = [];
+            final List<String> newNotifiedIds = List.from(notifiedIds);
 
-              final List<Map<String, String>> newItems = [];
-              final List<String> newNotifiedIds = List.from(notifiedIds);
+            for (final notice in notices.take(50)) {
+              final idStr = notice.id.toString();
+              // 이미 알림을 보낸 공지사항은 건너뛰기
+              if (notifiedIds.contains(idStr)) continue;
 
-              for (final notice in notices.take(50)) {
-                final idStr = notice.id.toString();
-                if (notifiedIds.contains(idStr)) continue;
-                final inFav =
-                    favBoards.isEmpty || favBoards.contains(notice.category);
-                newNotifiedIds.add(idStr);
-                if (!inFav) continue;
-                final matchesKeyword =
-                    keywords.isEmpty ||
-                    keywords.any(
-                      (kw) =>
-                          notice.title.toLowerCase().contains(kw.toLowerCase()),
-                    );
-                if (matchesKeyword) {
-                  newItems.add({
-                    'category': notice.category,
-                    'title': notice.title,
-                  });
-                }
-              }
+              // 관심 게시판 체크
+              final inFav =
+                  favBoards.isEmpty || favBoards.contains(notice.category);
+              newNotifiedIds.add(idStr);
+              if (!inFav) continue;
 
-              if (newItems.isNotEmpty) {
-                await _initPlugin();
-                if (newItems.length == 1) {
-                  await NotificationService.showNotification(
-                    title: '[${newItems[0]['category']}] 새 공지사항',
-                    body: newItems[0]['title']!,
-                    channelId: 'knue_moa_notice_channel',
-                    channelName: '공지사항 알림',
+              // 키워드 매칭 체크
+              final matchesKeyword =
+                  keywords.isEmpty ||
+                  keywords.any(
+                    (kw) =>
+                        notice.title.toLowerCase().contains(kw.toLowerCase()),
                   );
-                } else {
-                  final first = newItems[0];
-                  await NotificationService.showNotification(
-                    title: '새 공지사항 ${newItems.length}건',
-                    body:
-                        '[${first['category']}] ${first['title']} 외 ${newItems.length - 1}건',
-                    channelId: 'knue_moa_notice_channel',
-                    channelName: '공지사항 알림',
-                  );
-                }
+              if (matchesKeyword) {
+                newItems.add({
+                  'category': notice.category,
+                  'title': notice.title,
+                });
               }
-
-              final trimmed = newNotifiedIds.length > 100
-                  ? newNotifiedIds.sublist(newNotifiedIds.length - 100)
-                  : newNotifiedIds;
-              await prefs.setStringList('notified_ids', trimmed);
             }
+
+            if (newItems.isNotEmpty) {
+              await _initPlugin();
+              if (newItems.length == 1) {
+                await NotificationService.showNotification(
+                  title: '[${newItems[0]['category']}] 새 공지사항',
+                  body: newItems[0]['title']!,
+                  channelId: 'knue_moa_notice_channel',
+                  channelName: '공지사항 알림',
+                );
+              } else {
+                final first = newItems[0];
+                await NotificationService.showNotification(
+                  title: '새 공지사항 ${newItems.length}건',
+                  body:
+                      '[${first['category']}] ${first['title']} 외 ${newItems.length - 1}건',
+                  channelId: 'knue_moa_notice_channel',
+                  channelName: '공지사항 알림',
+                );
+              }
+            }
+
+            // 알림을 보낸 ID 저장 (최대 200개까지만 유지)
+            final trimmed = newNotifiedIds.length > 200
+                ? newNotifiedIds.sublist(newNotifiedIds.length - 200)
+                : newNotifiedIds;
+            await prefs.setStringList('notified_ids', trimmed);
           }
         }
 
@@ -286,15 +295,76 @@ class NotificationService {
     if (Platform.isAndroid || Platform.isIOS) {
       await Workmanager().initialize(callbackDispatcher);
 
-      // ExistingPeriodicWorkPolicy.keep: 이미 같은 uniqueName으로 등록된 태스크가 있으면 유지
+      // 새로운 공지사항을 더 자주 확인하기 위해 5분 간격으로 설정
+      // ExistingPeriodicWorkPolicy.replace: 기존タスクを置き換える
       await Workmanager().registerPeriodicTask(
         'check_new_notices',
         'check_new_notices_task',
-        frequency: const Duration(minutes: 15),
-        existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+        frequency: const Duration(minutes: 5),
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
         constraints: Constraints(networkType: NetworkType.connected),
       );
+
+      // FCM 설정
+      await _setupFCM();
     }
+  }
+
+  /// FCM 초기 설정 및 리스너 등록
+  static Future<void> _setupFCM() async {
+    final FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+    // 권한 요청 (iOS/Android 13+)
+    NotificationSettings settings = await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      if (kDebugMode) print('User granted permission');
+      
+      // 알림 주제(Topic) 구독 - 모든 사용자가 기본적으로 'notices' 구독
+      await messaging.subscribeToTopic('notices');
+    }
+
+    // 백그라운드 메시지 핸들러 등록
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    // 포어그라운드(앱이 켜져 있을 때) 메시지 수신 핸들러
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      if (kDebugMode) {
+        print('Got a message whilst in the foreground!');
+        print('Message data: ${message.data}');
+      }
+
+      if (message.notification != null) {
+        // 중복 방지 체크 (서버에서 'notice_id'를 data에 넣어준다고 가정)
+        if (message.data.containsKey('notice_id')) {
+          final idStr = message.data['notice_id'];
+          final prefs = await SharedPreferences.getInstance();
+          final notifiedIds = prefs.getStringList('notified_ids') ?? [];
+          
+          if (notifiedIds.contains(idStr)) {
+            if (kDebugMode) print('Duplicate notification skipped: $idStr');
+            return;
+          }
+          
+          // ID 저장
+          notifiedIds.add(idStr);
+          final trimmed = notifiedIds.length > 200
+              ? notifiedIds.sublist(notifiedIds.length - 200)
+              : notifiedIds;
+          await prefs.setStringList('notified_ids', trimmed);
+        }
+
+        // 로컬 알림으로 표시
+        await showNotification(
+          title: message.notification!.title ?? '새 공지사항',
+          body: message.notification!.body ?? '',
+        );
+      }
+    });
   }
 
   /// 알림 채널별 showNotification 범용 메서드
