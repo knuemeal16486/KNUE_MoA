@@ -850,15 +850,15 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           startDate,
                           primary,
                           isDark,
-                          () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              useRootNavigator: true,
-                              initialDate: startDate,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2030),
-                              locale: const Locale('ko', 'KR'),
-                            );
+                            () async {
+                              final picked = await showDatePicker(
+                                context: ctx,
+                                useRootNavigator: false,
+                                initialDate: startDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
+                                locale: const Locale('ko', 'KR'),
+                              );
                             if (picked != null) {
                               setModalState(() {
                                 startDate = picked;
@@ -888,8 +888,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           isDark,
                           () async {
                             final picked = await showDatePicker(
-                              context: context,
-                              useRootNavigator: true,
+                              context: ctx,
+                              useRootNavigator: false,
                               initialDate: endDate,
                               firstDate: startDate,
                               lastDate: DateTime(2030),
@@ -1422,11 +1422,10 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   const SizedBox(height: 8),
                   GestureDetector(
                     onTap: () async {
-                      // Bottom sheet의 ctx가 아닌 외부 context 사용
-                      // — Root Navigator를 강제 사용 → Bottom sheet와의 Navigator 충돌 방지
+                      // Bottom sheet의 ctx를 사용하여 Navigator 충돌 방지
                       final picked = await showDatePicker(
-                        context: context,
-                        useRootNavigator: true,
+                        context: ctx,
+                        useRootNavigator: false,
                         initialDate: targetDate,
                         firstDate: DateTime(2020),
                         lastDate: DateTime(2035),
